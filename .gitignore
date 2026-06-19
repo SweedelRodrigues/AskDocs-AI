@@ -1,0 +1,9 @@
+.venv/
+**pycache**/
+*.pyc
+vector_db_dir/
+config.json
+.env
+.streamlit/
+.DS_Store
+Thumbs.db
