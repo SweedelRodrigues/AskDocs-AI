@@ -12,6 +12,50 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import CharacterTextSplitter
 
+import hashlib
+import textwrap
+import base64
+
+def calculate_file_hash(filepath):
+    """
+    Calculates the SHA-256 hash of a file.
+    """
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(filepath, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+    except Exception:
+        return f"hash_error_{os.path.basename(filepath)}"
+
+def load_summaries_cache():
+    """
+    Loads the summaries cache from data/summaries_cache.json.
+    """
+    cache_path = os.path.join(working_dir, "data", "summaries_cache.json")
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_summaries_cache(cache):
+    """
+    Saves the summaries cache to data/summaries_cache.json.
+    """
+    data_dir = os.path.join(working_dir, "data")
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    cache_path = os.path.join(data_dir, "summaries_cache.json")
+    try:
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        st.sidebar.error(f"Error saving summary cache: {str(e)}")
+
 # Custom exception classes for document ingestion
 class DuplicateUploadError(Exception):
     pass
@@ -36,6 +80,550 @@ config_data = json.load(
 
 GROQ_API_KEY = config_data["GROQ_API_KEY"]
 os.environ["GROQ_API_KEY"] = GROQ_API_KEY
+
+def extract_document_metadata(docs, filepath):
+    """
+    Extracts metadata from the loaded document list.
+    """
+    word_count = sum(len(page.page_content.split()) for page in docs)
+    total_pages = len(docs)
+    reading_time = max(1, round(word_count / 200)) # 200 wpm
+    upload_time = datetime.now().strftime("%B %d, %Y, %I:%M %p")
+    return {
+        "filename": os.path.basename(filepath),
+        "total_pages": total_pages,
+        "word_count": word_count,
+        "reading_time": reading_time,
+        "upload_time": upload_time
+    }
+
+def generate_document_analysis(doc_text):
+    """
+    Invokes Groq Llama 3.3 to perform a single-pass extraction of all document insights in structured JSON format.
+    """
+    truncated_text = doc_text[:40000]
+    
+    prompt = f"""You are an expert AI research and document analysis assistant.
+Analyze the following document content and extract detailed structured insights.
+
+Your response MUST be a valid JSON object. Do NOT include any markdown code blocks, triple backticks (```json), or leading/trailing conversational text. Only output the raw JSON object string.
+
+The JSON object MUST contain the following keys exactly:
+1. "quick_summary": A high-level, executive summary of 2-3 sentences.
+2. "detailed_summary": A thorough summary explaining key details, methods, and insights (between 150 and 250 words).
+3. "purpose": A brief explanation of the document's main purpose or objective.
+4. "topics": A list of 5 to 10 key topics, concepts, or keywords.
+5. "takeaways": A list of 3 to 5 key takeaway bullet points highlighting main ideas.
+6. "intended_audience": A short description of the target/intended audience.
+7. "difficulty_level": The reading difficulty level ("Beginner", "Intermediate", or "Advanced").
+8. "suggested_questions": Exactly 5 intelligent questions that a user might ask about this document's content.
+9. "conclusion": A single-sentence final conclusion of the document.
+
+Document Content:
+{truncated_text}
+
+JSON Output:"""
+
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+    try:
+        response = llm.invoke(prompt)
+        raw_content = response.content.strip()
+        
+        # Clean JSON blocks if LLM outputted them despite instructions
+        if raw_content.startswith("```json"):
+            raw_content = raw_content[7:]
+        elif raw_content.startswith("```"):
+            raw_content = raw_content[3:]
+        if raw_content.endswith("```"):
+            raw_content = raw_content[:-3]
+        raw_content = raw_content.strip()
+        
+        data = json.loads(raw_content)
+        
+        # Ensure all required keys exist
+        required_keys = ["quick_summary", "detailed_summary", "purpose", "topics", "takeaways", "intended_audience", "difficulty_level", "suggested_questions", "conclusion"]
+        for key in required_keys:
+            if key not in data:
+                if key in ["topics", "takeaways", "suggested_questions"]:
+                    data[key] = []
+                else:
+                    data[key] = "N/A"
+        return data
+    except Exception as e:
+        # Fallback summary details in case of parse/API error
+        return {
+            "quick_summary": "Summary generation encountered an error or timed out.",
+            "detailed_summary": f"Could not generate detailed summary. Error: {str(e)}",
+            "purpose": "N/A",
+            "topics": ["Error"],
+            "takeaways": ["Failed to extract takeaways due to an API error."],
+            "intended_audience": "N/A",
+            "difficulty_level": "N/A",
+            "suggested_questions": [
+                "What is this document about?",
+                "What are the main findings?",
+                "What is the methodology?",
+                "What are the conclusions?",
+                "Can you explain the main ideas?"
+            ],
+            "conclusion": "N/A"
+        }
+
+def generate_document_summary(doc_text):
+    analysis = generate_document_analysis(doc_text)
+    return analysis.get("detailed_summary", "")
+
+def extract_key_topics(doc_text):
+    analysis = generate_document_analysis(doc_text)
+    return analysis.get("topics", [])
+
+def generate_key_takeaways(doc_text):
+    analysis = generate_document_analysis(doc_text)
+    return analysis.get("takeaways", [])
+
+def cache_summary(filename, file_hash, summary_data):
+    cache = load_summaries_cache()
+    cache[file_hash] = {
+        "filename": filename,
+        "quick_summary": summary_data.get("quick_summary", ""),
+        "detailed_summary": summary_data.get("detailed_summary", ""),
+        "purpose": summary_data.get("purpose", ""),
+        "topics": summary_data.get("topics", []),
+        "takeaways": summary_data.get("takeaways", []),
+        "intended_audience": summary_data.get("intended_audience", ""),
+        "difficulty_level": summary_data.get("difficulty_level", ""),
+        "suggested_questions": summary_data.get("suggested_questions", []),
+        "conclusion": summary_data.get("conclusion", ""),
+        "metadata": summary_data.get("metadata", {})
+    }
+    save_summaries_cache(cache)
+
+def process_summary_for_file(filename, saved_path, status_placeholder):
+    """
+    Computes hash, checks cache, generates summary and metadata with visual progress status.
+    """
+    file_hash = calculate_file_hash(saved_path)
+    cache = load_summaries_cache()
+    
+    if file_hash in cache:
+        # Already cached
+        st.session_state.selected_document = filename
+        return
+        
+    def update_status(text):
+        status_placeholder.markdown(
+            textwrap.dedent(f"""
+                <div class="summary-loading-card">
+                    <div class="summary-loading-spinner"></div>
+                    <div class="summary-loading-text">{text}</div>
+                </div>
+            """),
+            unsafe_allow_html=True
+        )
+        
+    import time
+    
+    # Show status: Analyzing document...
+    update_status("Analyzing document...")
+    time.sleep(0.8)
+    
+    # Show status: Extracting content...
+    update_status("Extracting content...")
+    try:
+        loader = PyPDFLoader(saved_path)
+        docs = loader.load()
+        metadata = extract_document_metadata(docs, saved_path)
+        doc_text = "\n".join([page.page_content for page in docs])
+    except Exception as e:
+        st.sidebar.error(f"Error loading document '{filename}': {str(e)}")
+        return
+        
+    time.sleep(0.8)
+    
+    # Show status: Generating AI summary...
+    update_status("Generating AI summary...")
+    analysis = generate_document_analysis(doc_text)
+    
+    # Embed metadata into analysis for caching
+    analysis["metadata"] = metadata
+    
+    # Cache it
+    cache_summary(filename, file_hash, analysis)
+    
+    # Show status: Done!
+    update_status("Done!")
+    time.sleep(1.0)
+    status_placeholder.empty()
+    
+    # Select document automatically
+    st.session_state.selected_document = filename
+
+
+def get_cached_summary_by_filename(filename):
+    """
+    Finds the cached summary data matching the given filename.
+    """
+    cache = load_summaries_cache()
+    for file_hash, data in cache.items():
+        if data.get("filename") == filename:
+            return data
+    return None
+
+def render_pdf_preview(filename):
+    """
+    Renders the PDF using st.pdf natively if possible. Falls back to a robust,
+    multi-layered nested HTML viewer (Object -> Embed -> Iframe) and provides
+    a download button as a final backup.
+    """
+    upload_dir = os.path.join(working_dir, "uploaded_docs")
+    upload_path = os.path.join(upload_dir, filename)
+    data_dir = os.path.join(working_dir, "data")
+    data_path = os.path.join(data_dir, filename)
+    path_to_use = upload_path if os.path.exists(upload_path) else (data_path if os.path.exists(data_path) else None)
+    
+    # 4. Path and existence checks
+    if not path_to_use:
+        st.error(f"❌ Error: The document '{filename}' could not be located in the uploads directory.")
+        return
+        
+    if not os.path.exists(path_to_use):
+        st.error(f"❌ Error: File not found at '{path_to_use}'.")
+        return
+        
+    try:
+        # 8. Exception handling: Check if the PDF can be opened and read successfully
+        with open(path_to_use, "rb") as f:
+            pdf_bytes = f.read()
+            if len(pdf_bytes) == 0:
+                raise ValueError("PDF file is empty (0 bytes).")
+                
+        # 2. Check for native PDF rendering (st.pdf)
+        try:
+            # st.pdf raises StreamlitAPIException if streamlit-pdf is not installed
+            st.pdf(path_to_use, height=600)
+            return  # Rendered natively!
+        except Exception:
+            # Fall through to HTML embed / download button fallback if st.pdf fails
+            pass
+            
+        # 3. Fallback: Multi-layered embedded PDF object tag
+        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+        pdf_html = textwrap.dedent(
+            f"""
+            <object data="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="600px" style="border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;">
+                <embed src="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="600px" style="border-radius: 12px;" />
+                <iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none;">
+                    <p style="color: #cbd5e1; padding: 20px; text-align: center;">This browser does not support embedding PDF files. Please download the document below.</p>
+                </iframe>
+            </object>
+            """
+        )
+        st.markdown(pdf_html, unsafe_allow_html=True)
+        
+        # 9. Download fallback button
+        st.write("")
+        st.download_button(
+            label="📥 Download PDF Document",
+            data=pdf_bytes,
+            file_name=filename,
+            mime="application/pdf",
+            use_container_width=True
+        )
+        
+    except FileNotFoundError:
+        st.error(f"❌ Error: The file '{filename}' was not found. Please re-upload it.")
+    except PermissionError:
+        st.error(f"❌ Error: Permission denied. Unable to read the file '{filename}'. Check file permissions.")
+    except ValueError as ve:
+        st.error(f"❌ Error: Corrupted or unsupported PDF - {str(ve)}")
+    except Exception as e:
+        # 9. Rendering fails: display user-friendly message and download button
+        st.error(f"⚠️ PDF rendering is unavailable or failed: {str(e)}")
+        try:
+            with open(path_to_use, "rb") as f:
+                fallback_bytes = f.read()
+            st.download_button(
+                label="📥 Download PDF Document (Fallback)",
+                data=fallback_bytes,
+                file_name=filename,
+                mime="application/pdf",
+                use_container_width=True
+            )
+        except Exception:
+            st.error("❌ Critical: Unable to read file content for download.")
+
+def render_document_metadata(metadata):
+    """
+    Renders document metadata metrics inside Streamlit columns.
+    """
+    pages = metadata.get("total_pages", "N/A")
+    words = metadata.get("word_count", "N/A")
+    reading_time = metadata.get("reading_time", "N/A")
+    upload_time = metadata.get("upload_time", "N/A")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(label="Pages", value=pages)
+    with col2:
+        st.metric(label="Reading Time", value=f"{reading_time} min")
+    with col3:
+        if isinstance(words, int):
+            st.metric(label="Word Count", value=f"{words:,}")
+        else:
+            st.metric(label="Word Count", value=words)
+    with col4:
+        st.metric(label="Uploaded", value=upload_time)
+
+def render_summary(quick_summary, detailed_summary):
+    """
+    Renders the quick summary text and detailed summary inside a Streamlit expander.
+    """
+    st.markdown(f"**Quick Summary:**  \n{quick_summary}")
+    with st.expander("🔍 View Detailed AI Summary", expanded=False):
+        st.markdown(detailed_summary)
+
+def render_key_topics(topics):
+    """
+    Renders keywords/topics as chips using clean inline HTML tags.
+    """
+    if not topics:
+        st.caption("No topics extracted.")
+        return
+    chips_html = "".join([f'<span class="topic-chip">{html.escape(t)}</span>' for t in topics])
+    st.markdown(f'<div class="topics-container">{chips_html}</div>', unsafe_allow_html=True)
+
+def render_takeaways(takeaways, conclusion):
+    """
+    Renders bullet points of takeaways and a formatted conclusion.
+    """
+    if not takeaways:
+        st.caption("No takeaways generated.")
+    else:
+        for t in takeaways:
+            st.markdown(f"• {t}")
+    if conclusion and conclusion != "N/A":
+        st.markdown(f"*Conclusion: {conclusion}*")
+
+def render_suggested_questions(questions):
+    """
+    Renders suggested questions as a row of pill buttons.
+    """
+    if not questions:
+        return
+    cols = st.columns(len(questions))
+    for idx, q in enumerate(questions):
+        with cols[idx]:
+            if st.button(q, key=f"q_chip_{idx}", use_container_width=True):
+                # Append user prompt and trigger immediate chatbot run
+                st.session_state.chat_history.append({
+                    "role": "user",
+                    "content": q,
+                    "timestamp": datetime.now().strftime("%I:%M %p")
+                })
+                st.rerun()
+
+def render_document_dashboard(filename):
+    """
+    Renders the entire Document Insights dashboard. It handles state expansion,
+    metadata displaying, previews, and key insights widgets.
+    """
+    # Track document change to force expand
+    if st.session_state.get("prev_selected_document") != filename:
+        st.session_state.prev_selected_document = filename
+        st.session_state.expand_insights = True
+    else:
+        # Don't force reset on standard reruns
+        if "expand_insights" not in st.session_state:
+            st.session_state.expand_insights = True
+
+    # Get cached data
+    summary_data = get_cached_summary_by_filename(filename)
+    if not summary_data:
+        # Generate on-the-fly fallback
+        upload_path = os.path.join(working_dir, "uploaded_docs", filename)
+        data_path = os.path.join(working_dir, "data", filename)
+        path_to_use = upload_path if os.path.exists(upload_path) else (data_path if os.path.exists(data_path) else None)
+        if path_to_use:
+            status_placeholder = st.empty()
+            process_summary_for_file(filename, path_to_use, status_placeholder)
+            summary_data = get_cached_summary_by_filename(filename)
+            
+    if not summary_data:
+        st.warning(f"Could not load insights for '{filename}'.")
+        return
+
+    # Render inside a collapsible expander
+    is_expanded = st.session_state.get("expand_insights", True)
+    
+    with st.expander(f"📄 AI Document Insights: {filename}", expanded=is_expanded):
+        # Once expanded, set to False so subsequent typing reruns don't force open it if closed manually
+        st.session_state.expand_insights = False
+        
+        # 1. Metadata
+        st.markdown("##### Metadata")
+        render_document_metadata(summary_data.get("metadata", {}))
+        
+        # 2. PDF Preview Card
+        with st.expander("👁️ Preview PDF Document", expanded=False):
+            render_pdf_preview(filename)
+            
+        st.divider()
+        
+        # 3. Summary
+        st.markdown("##### Executive Summary")
+        render_summary(summary_data.get("quick_summary", ""), summary_data.get("detailed_summary", ""))
+        
+        st.divider()
+        
+        # 4. Context & Takeaways Columns
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("##### 🎯 Document Context")
+            st.markdown(f"**Purpose:** {summary_data.get('purpose', 'N/A')}")
+            st.markdown(f"**Intended Audience:** {summary_data.get('intended_audience', 'N/A')}")
+            st.markdown(f"**Difficulty Level:** {summary_data.get('difficulty_level', 'N/A')}")
+            
+            st.markdown("##### 🏷️ Key Topics")
+            render_key_topics(summary_data.get("topics", []))
+            
+        with col2:
+            st.markdown("##### 📝 Key Takeaways")
+            render_takeaways(summary_data.get("takeaways", []), summary_data.get("conclusion", ""))
+            
+        st.divider()
+        
+        # 5. Suggested Questions
+        st.markdown("##### 💡 Suggested Questions")
+        render_suggested_questions(summary_data.get("suggested_questions", []))
+        
+        st.write("") # Add spacing
+        
+        # Back to general chat button
+        col_back, _ = st.columns([0.25, 0.75])
+        with col_back:
+            if st.button("⬅️ General Chat (Deselect File)", key="back_to_general_btn", use_container_width=True):
+                st.session_state.selected_document = None
+                st.rerun()
+
+
+
+
+
+def is_summary_query(query: str) -> bool:
+    """
+    Checks if the user prompt is a request for a document summary or highlights.
+    """
+    query_lower = query.strip().lower().rstrip("?.!")
+    keywords = [
+        "summarize this",
+        "summarize the document",
+        "summarize document",
+        "give me a summary",
+        "give me the summary",
+        "explain this document",
+        "explain the document",
+        "what is this document about",
+        "what is the document about",
+        "what is this pdf about",
+        "what is the pdf about",
+        "give me key takeaways",
+        "give key takeaways",
+        "what are the key takeaways",
+        "what are the important points",
+        "explain this pdf",
+        "explain the pdf",
+        "give summary",
+        "get summary",
+        "explain pdf",
+        "summarize",
+        "executive summary",
+        "highlights",
+        "important findings",
+        "purpose of this document",
+        "purpose of the document",
+        "intended audience",
+        "main conclusions",
+        "explain this like i'm a beginner",
+        "explain this like a beginner"
+    ]
+    if any(k in query_lower for k in keywords):
+        return True
+        
+    import re
+    if re.search(r"\b(summarize|summary|explain|takeaway|takeaways|important|points|purpose|audience|conclusions|highlights)\b", query_lower):
+        if re.search(r"\b(document|pdf|file|paper|text|this|about|about\s+this)\b", query_lower) or query_lower in ["summarize", "explain"]:
+            return True
+    return False
+
+def map_query_to_cache_field(query: str):
+    """
+    Maps a natural language query to a specific cached summary field.
+    """
+    query_lower = query.lower().strip().rstrip("?.!")
+    
+    # Purpose
+    if any(p in query_lower for p in ["purpose of this document", "purpose of the document", "document's purpose", "what is the purpose"]):
+        return "purpose", "Purpose"
+        
+    # Audience
+    if any(a in query_lower for a in ["intended audience", "target audience", "who is the audience", "who is this document for"]):
+        return "intended_audience", "Intended Audience"
+        
+    # Conclusion
+    if any(c in query_lower for c in ["main conclusions", "document's conclusion", "what is the conclusion", "conclusions"]):
+        return "conclusion", "Conclusion"
+        
+    # Takeaways / Key points
+    if any(t in query_lower for t in ["key points", "important findings", "key takeaways", "takeaways", "highlights", "important points"]):
+        return "takeaways", "Key Takeaways"
+        
+    # Executive Summary / Beginner
+    if "beginner" in query_lower or "explain this like i'm a beginner" in query_lower:
+        return "quick_summary", "Executive Summary (Beginner-friendly)"
+        
+    if "executive summary" in query_lower or "quick summary" in query_lower or "short summary" in query_lower:
+        return "quick_summary", "Executive Summary"
+
+    return "detailed_summary", "Detailed AI Summary"
+
+
+def get_target_document_for_query(query: str) -> str:
+    """
+    Determines which document in the vector store is the subject of the summary request.
+    """
+    docs = st.session_state.get("indexed_documents", [])
+    if not docs:
+        return None
+    if len(docs) == 1:
+        return docs[0]
+        
+    # Check if a filename is mentioned in the query (case insensitive)
+    query_lower = query.lower()
+    for doc in docs:
+        if doc.lower() in query_lower:
+            return doc
+        name_no_ext = os.path.splitext(doc)[0].lower()
+        if name_no_ext in query_lower:
+            return doc
+        name_clean = name_no_ext.replace("_", " ").replace("-", " ")
+        if name_clean in query_lower:
+            return doc
+            
+    # Check if a document is selected in the sidebar
+    selected = st.session_state.get("selected_document")
+    if selected in docs:
+        return selected
+        
+    # Fallback to the most recently uploaded document (last in list)
+    return docs[-1]
+
+
+
+
+
+
+
 
 def get_indexed_documents(vectorstore):
     """
@@ -381,11 +969,16 @@ def render_sidebar():
                         st.session_state.indexed_documents.append(f.name)
                     st.session_state.failed_uploads.discard(f.name)
                 
+                # Process automatic AI summary generation & caching for each uploaded file
+                for filename, saved_path in zip([f.name for f in to_process], saved_paths):
+                    process_summary_for_file(filename, saved_path, status_placeholder)
+
                 # Step 3: Ready to chat.
                 status_placeholder.markdown(render_upload_status(3), unsafe_allow_html=True)
                 import time
                 time.sleep(1.5)
                 status_placeholder.empty()
+                st.rerun()
             except DuplicateUploadError:
                 status_placeholder.empty()
                 st.sidebar.error("This document is already indexed.")
@@ -417,18 +1010,18 @@ def render_sidebar():
         for file in st.session_state.indexed_documents:
             col1, col2 = st.sidebar.columns([0.83, 0.17])
             with col1:
-                file_html = f"""
-                <div class="file-list-item" style="margin-bottom: 0;">
-                    <span class="file-icon">📄</span>
-                    <span class="file-name" title="{file}">{file}</span>
-                </div>
-                """
-                st.markdown(file_html, unsafe_allow_html=True)
+                selected = st.session_state.get("selected_document") == file
+                btn_label = f"✨ {file}" if selected else f"📄 {file}"
+                if st.button(btn_label, key=f"doc_{file}", use_container_width=True):
+                    st.session_state.selected_document = file
+                    st.rerun()
             with col2:
                 if st.button("🗑️", key=f"del_{file}", help=f"Remove {file}"):
                     if delete_document_from_vectorstore(st.session_state.vectorstore, file):
                         st.session_state.indexed_documents.remove(file)
                         st.session_state.failed_uploads.discard(file)
+                        if st.session_state.get("selected_document") == file:
+                            st.session_state.selected_document = None
                         refresh_retrieval_chain()
                         st.rerun()
     else:
@@ -458,40 +1051,58 @@ def render_sidebar():
     )
 
 def render_header():
-    header_html = """
-    <div class="main-header">
-        <h1>📚 Multi-Document AI Assistant</h1>
-        <p>Chat with your PDFs using Generative AI</p>
-    </div>
-    <div class="glowing-divider"></div>
-    """
+    header_html = textwrap.dedent(
+        """
+        <div class="main-header">
+            <h1>📚 Multi-Document AI Assistant</h1>
+            <p>Chat with your PDFs using Generative AI</p>
+        </div>
+        <div class="glowing-divider"></div>
+        """
+    )
     st.markdown(header_html, unsafe_allow_html=True)
 
 def render_welcome_screen():
-    welcome_html = """
-    <div class="welcome-container">
-        <h1 class="welcome-title">Multi-Document AI Assistant</h1>
-        <p class="welcome-subtitle">Upload PDFs and ask questions in natural language.</p>
-        <div class="welcome-cards-grid">
-            <div class="welcome-card">
-                <span class="welcome-card-icon">📄</span>
-                <div class="welcome-card-title">Upload Documents</div>
-                <div class="welcome-card-desc">Upload multiple PDF files to index them into the vector database.</div>
-            </div>
-            <div class="welcome-card">
-                <span class="welcome-card-icon">💬</span>
-                <div class="welcome-card-title">Ask Questions</div>
-                <div class="welcome-card-desc">Interact with the chatbot to ask anything about your indexed documents.</div>
-            </div>
-            <div class="welcome-card">
-                <span class="welcome-card-icon">⚡</span>
-                <div class="welcome-card-title">Get Instant AI Answers</div>
-                <div class="welcome-card-desc">Get responses generated with retrieved context and relevant sources.</div>
-            </div>
-        </div>
-    </div>
-    """
-    st.markdown(welcome_html, unsafe_allow_html=True)
+    st.markdown("# 📄 Welcome to AskDocs AI")
+    st.markdown("##### Upload one or more PDF documents and start chatting with them using AI.")
+    st.write("")
+    
+    # 6 features grid
+    features = [
+        ("✨ AI Document Summaries", "Get instant executive summaries, key topics, and key takeaways for any uploaded document."),
+        ("🔍 Semantic Search", "Find exact details across all pages using semantic document retrieval techniques."),
+        ("💬 Intelligent Q&A", "Engage in dialogue with documents. Ask questions naturally and get instant answers."),
+        ("📚 Multi-Doc Support", "Upload multiple documents and cross-reference information seamlessly in one chat."),
+        ("📌 Source Citations", "Every response lists the corresponding document and exact page citations."),
+        ("💡 Suggested Questions", "Get 5 smart, auto-generated clickable question recommendations for every document.")
+    ]
+    
+    col1, col2 = st.columns(2)
+    for i, (title, desc) in enumerate(features):
+        target_col = col1 if i % 2 == 0 else col2
+        with target_col:
+            with st.container(border=True):
+                st.markdown(f"### {title}")
+                st.markdown(desc)
+                
+    st.write("")
+    
+    # Get Started Card using native Streamlit containers
+    with st.container(border=True):
+        st.markdown("### 📌 Get Started")
+        st.markdown("Use the sidebar to upload one or more PDF documents.")
+        st.markdown(
+            """
+            Once uploaded, the AI will automatically:
+            * Generate an executive summary
+            * Extract key topics
+            * Generate key takeaways
+            * Build the searchable knowledge base
+            * Enable intelligent Q&A
+            """
+        )
+        if st.button("Upload Documents", key="upload_docs_cta_btn", use_container_width=True):
+            st.info("👈 Use the file uploader in the sidebar on the left to upload your PDF files.")
 
 def render_chat_messages():
     chat_html = '<div class="chat-container">'
@@ -576,6 +1187,9 @@ st.set_page_config(
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+if "selected_document" not in st.session_state:
+    st.session_state.selected_document = None
+
 if "embeddings" not in st.session_state:
     st.session_state.embeddings = HuggingFaceEmbeddings()
 
@@ -603,11 +1217,20 @@ inject_custom_assets()
 render_sidebar()
 
 # Main Flow Conditional Layout
-if not st.session_state.chat_history:
-    render_welcome_screen()
+if st.session_state.get("selected_document"):
+    render_document_dashboard(st.session_state.selected_document)
+    st.divider()
+    st.markdown(f"### 💬 Chat with {st.session_state.selected_document}")
+    if st.session_state.chat_history:
+        render_chat_messages()
+    else:
+        st.info("Ask any question about this document below to start chatting.")
 else:
-    render_header()
-    render_chat_messages()
+    if not st.session_state.chat_history:
+        render_welcome_screen()
+    else:
+        render_header()
+        render_chat_messages()
 
 # Handle Assistant Response Generation (when the last message is from user)
 if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] == "user":
@@ -630,6 +1253,81 @@ if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] =
         
         user_input = st.session_state.chat_history[-1]["content"]
         
+        # Check if this is a summary query
+        if is_summary_query(user_input):
+            target_doc = get_target_document_for_query(user_input)
+            if target_doc:
+                summary_data = get_cached_summary_by_filename(target_doc)
+                if not summary_data:
+                    # Try to generate on the fly
+                    upload_path = os.path.join(working_dir, "uploaded_docs", target_doc)
+                    data_path = os.path.join(working_dir, "data", target_doc)
+                    path_to_use = upload_path if os.path.exists(upload_path) else (data_path if os.path.exists(data_path) else None)
+                    if path_to_use:
+                        process_summary_for_file(target_doc, path_to_use, st.empty())
+                        summary_data = get_cached_summary_by_filename(target_doc)
+                
+                if summary_data:
+                    quick = summary_data.get("quick_summary", "")
+                    detailed = summary_data.get("detailed_summary", "")
+                    purpose = summary_data.get("purpose", "")
+                    topics = summary_data.get("topics", [])
+                    takeaways = summary_data.get("takeaways", [])
+                    audience = summary_data.get("intended_audience", "")
+                    difficulty = summary_data.get("difficulty_level", "")
+                    conclusion = summary_data.get("conclusion", "")
+                    
+                    field, field_title = map_query_to_cache_field(user_input)
+                    
+                    if field == "detailed_summary":
+                        content = f"### AI Summary for **{target_doc}**\n\n"
+                        content += f"**Quick Overview:**\n{quick}\n\n"
+                        content += f"**Detailed Analysis:**\n{detailed}\n\n"
+                        if purpose and purpose != "N/A":
+                            content += f"**Purpose:** {purpose}\n\n"
+                        if audience and audience != "N/A":
+                            content += f"**Intended Audience:** {audience}\n\n"
+                        if difficulty and difficulty != "N/A":
+                            content += f"**Difficulty Level:** {difficulty}\n\n"
+                        if takeaways:
+                            content += "**Key Takeaways:**\n"
+                            for take in takeaways:
+                                content += f"- {take}\n"
+                            content += "\n"
+                        if conclusion and conclusion != "N/A":
+                            content += f"**Conclusion:** *{conclusion}*\n\n"
+                        if topics:
+                            content += "**Key Topics:** " + ", ".join([f"`{t}`" for t in topics]) + "\n"
+                    else:
+                        field_value = summary_data.get(field, "N/A")
+                        content = f"### {field_title} for **{target_doc}**\n\n"
+                        if field == "takeaways" and isinstance(field_value, list):
+                            for take in field_value:
+                                content += f"- {take}\n"
+                        elif field == "topics" and isinstance(field_value, list):
+                            content += ", ".join([f"`{t}`" for t in field_value])
+                        else:
+                            content += str(field_value)
+                        content += "\n"
+                        
+                    sources = [{"name": target_doc, "page": 0}]
+                    
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": content,
+                        "sources": sources,
+                        "timestamp": datetime.now().strftime("%I:%M %p")
+                    })
+                    st.rerun()
+            else:
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": "No documents are indexed yet. Please upload a PDF in the sidebar first.",
+                    "sources": [],
+                    "timestamp": datetime.now().strftime("%I:%M %p")
+                })
+                st.rerun()
+
         # Invoke RAG chain
         response = st.session_state.conversationsal_chain(
             {"question": user_input}

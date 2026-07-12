@@ -1,0 +1,231 @@
+{
+    "5a5fe8dd13221cfacf70f421d3f091f07ec0adf443e96676744bc2d20e8f9014": {
+        "filename": "Chatbot-Sohan.pdf",
+        "quick_summary": "The proposed system is a semantic workout video recommendation system that generates embeddings directly from the visual content of each workout video. The system uses OpenCLIP to understand the actual workout content and metadata as a supporting signal. The goal is to make recommendations accurate even when titles, tags, or descriptions are missing.",
+        "detailed_summary": "The system's architecture consists of a video upload process, Supabase storage, and a webhook that triggers the embedding processor. The embedding processor uses OpenCLIP to generate embeddings from the video frames, which are then stored in a separate video_embeddings table. The system uses a hybrid embedding approach, combining visual and text embeddings to generate the final embedding. The recommendation flow involves intent understanding, query embedding, vector similarity search, and response generation using Claude. The system is designed to be scalable, maintainable, and easy to extend in the future.",
+        "purpose": "The main purpose of the document is to propose a semantic workout video recommendation system that can provide accurate recommendations based on the actual video content.",
+        "topics": [
+            "Workout Video Recommendation System",
+            "OpenCLIP",
+            "Hybrid Embedding Approach",
+            "Supabase",
+            "Claude",
+            "Intent Understanding",
+            "Query Embedding",
+            "Vector Similarity Search"
+        ],
+        "takeaways": [
+            "The system generates embeddings directly from the visual content of each workout video",
+            "The system uses a hybrid embedding approach to combine visual and text embeddings",
+            "The system is designed to be scalable and maintainable"
+        ],
+        "intended_audience": "The intended audience is likely developers and researchers interested in building AI-powered workout video recommendation systems",
+        "difficulty_level": "Advanced",
+        "suggested_questions": [
+            "How does the system handle missing or incomplete metadata?",
+            "Can the system be extended to support other types of video content?",
+            "How does the system evaluate the quality of the recommendations?",
+            "What are the potential applications of the system beyond workout video recommendations?",
+            "How does the system handle updates to the video library and changes to the embedding models?"
+        ],
+        "conclusion": "The proposed system provides a scalable foundation for AI-powered workout video recommendations, keeping the architecture clean, maintainable, and easy to extend in the future.",
+        "metadata": {
+            "filename": "Chatbot-Sohan.pdf",
+            "total_pages": 7,
+            "word_count": 753,
+            "reading_time": 4,
+            "upload_time": "July 12, 2026, 12:18 PM"
+        }
+    },
+    "d8e8293c33f3339f591576d211056a901454d13b2cedc0e15a343792825f99fa": {
+        "filename": "Exam_Result_Sheet_dsce.pdf",
+        "quick_summary": "The document provides provisional results for a student, SWEEDEL RODRIGUES, from DAYANANDA SAGAR COLLEGE OF ENGINEERING. The results are for the II Semester BACHELOR OF INFORMATION SCIENCE ENGINEERING and show the student's grades for various courses. The results are provisional and not official confirmation of achievement.",
+        "detailed_summary": "The document contains the provisional results of a student from DAYANANDA SAGAR COLLEGE OF ENGINEERING. The results are for the II Semester BACHELOR OF INFORMATION SCIENCE ENGINEERING and include the student's grades for eight courses, such as ESSENTIAL MATHEMATICS II, APPLIED CHEMISTRY, and INTRODUCTION TO C++ PROGRAMMING. The grades are based on a letter grading system, with O being outstanding, A+ being excellent, and so on. The student's SGPA is 9.8, indicating a strong academic performance. The document also includes a disclaimer stating that the results are provisional and not official confirmation of achievement.",
+        "purpose": "To provide provisional results to students",
+        "topics": [
+            "provisional results",
+            "DAYANANDA SAGAR COLLEGE OF ENGINEERING",
+            "BACHELOR OF INFORMATION SCIENCE ENGINEERING",
+            "letter grading system",
+            "SGPA",
+            "academic performance"
+        ],
+        "takeaways": [
+            "The student, SWEEDEL RODRIGUES, has achieved a strong academic performance with an SGPA of 9.8",
+            "The results are provisional and not official confirmation of achievement",
+            "The letter grading system is used to evaluate student performance"
+        ],
+        "intended_audience": "Students and faculty of DAYANANDA SAGAR COLLEGE OF ENGINEERING",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "What is the significance of the provisional results?",
+            "How is the SGPA calculated?",
+            "What is the difference between the letter grades?",
+            "What are the implications of the results for the student's academic progression?",
+            "How can the student access the official results?"
+        ],
+        "conclusion": "The document provides a comprehensive overview of the student's academic performance in the II Semester BACHELOR OF INFORMATION SCIENCE ENGINEERING, with a strong emphasis on the provisional nature of the results.",
+        "metadata": {
+            "filename": "Exam_Result_Sheet_dsce.pdf",
+            "total_pages": 1,
+            "word_count": 308,
+            "reading_time": 2,
+            "upload_time": "July 12, 2026, 12:25 PM"
+        }
+    },
+    "fdee0265b045b87527319d51ef09a031da301ee03149576894af24a968459e55": {
+        "filename": "EY_triotech.pptx.pdf",
+        "quick_summary": "The document discusses the challenges faced by customers in the retail industry due to fragmented shopping experiences across online, app, and in-store channels. It proposes a solution using an AI-powered conversational agent to provide a seamless shopping journey. The solution aims to improve customer satisfaction, personalize recommendations, and increase average order value.",
+        "detailed_summary": "The retail industry is facing a significant challenge in providing a seamless shopping experience to customers across various channels. The current shopping journey is disconnected, leading to breaks in experience, limited staff availability, and reduced conversions. To address this issue, the proposed solution utilizes an AI-powered conversational agent that acts as a smart virtual sales assistant, providing human-like interaction and end-to-end support to customers. The agent connects experiences across web, app, messaging, and in-store platforms, guiding users from product discovery to post-purchase help. The solution is built using readily available tools and has low development costs, making it affordable for prototyping. It also has the potential to empower retail with intelligent, personalized, and profitable AI conversations.",
+        "purpose": "The main purpose of the document is to propose a solution to the challenges faced by customers in the retail industry due to fragmented shopping experiences.",
+        "topics": [
+            "Retail Industry",
+            "AI-Powered Conversational Agent",
+            "Seamless Shopping Journey",
+            "Customer Satisfaction",
+            "Personalized Recommendations",
+            "Average Order Value",
+            "E-Commerce",
+            "Omnichannel Retailing"
+        ],
+        "takeaways": [
+            "The retail industry is facing a significant challenge in providing a seamless shopping experience to customers",
+            "An AI-powered conversational agent can provide a seamless shopping journey and improve customer satisfaction",
+            "The solution has the potential to increase average order value and provide personalized recommendations"
+        ],
+        "intended_audience": "The intended audience of the document appears to be retail industry professionals, including executives, managers, and IT professionals.",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "What are the main challenges faced by customers in the retail industry?",
+            "How does the AI-powered conversational agent provide a seamless shopping journey?",
+            "What are the potential benefits of implementing the proposed solution?",
+            "How does the solution utilize readily available tools and low development costs?",
+            "What are the potential applications of the solution in other industries?"
+        ],
+        "conclusion": "The proposed solution has the potential to revolutionize the retail industry by providing a seamless shopping experience to customers, improving customer satisfaction, and increasing average order value.",
+        "metadata": {
+            "filename": "EY_triotech.pptx.pdf",
+            "total_pages": 9,
+            "word_count": 823,
+            "reading_time": 4,
+            "upload_time": "July 12, 2026, 01:21 PM"
+        }
+    },
+    "d8a011c2f3d39699607aa0fc4019da36025a54595886174f8b0e912b494fe3ee": {
+        "filename": "sweedelrodrigues_1779293623.pdf",
+        "quick_summary": "Sweedel Rodrigues is an AI/ML Engineer with experience in computer vision, 3D reconstruction, and full-stack applications. He has designed scalable AI systems and worked on various projects, including a medicine authentication system and an industrial decarbonization platform. He has also published research papers and won hackathons.",
+        "detailed_summary": "Sweedel Rodrigues has hands-on experience in computer vision, 3D reconstruction, and full-stack applications, with a strong background in designing scalable AI systems. He has worked on various projects, including MediScan, a full-stack medicine authentication system, and CarbonEdge, an AI-driven industrial decarbonization platform. He has also published a research paper on MediScan and won the 1st place at HackBites 3.0, a 24-hour hackathon. His skills include programming languages such as Python, C, and JavaScript, as well as expertise in AI/ML frameworks like NumPy, Pandas, and Scikit-learn. He is currently pursuing his B.E. in Information Science from Dayananda Sagar College of Engineering.",
+        "purpose": "To showcase Sweedel Rodrigues' skills, experience, and achievements as an AI/ML Engineer",
+        "topics": [
+            "AI/ML",
+            "Computer Vision",
+            "3D Reconstruction",
+            "Full-stack Applications",
+            "Medicine Authentication",
+            "Industrial Decarbonization",
+            "Python",
+            "JavaScript",
+            "NumPy",
+            "Pandas",
+            "Scikit-learn"
+        ],
+        "takeaways": [
+            "Sweedel Rodrigues has experience in designing scalable AI systems",
+            "He has worked on various projects, including MediScan and CarbonEdge",
+            "He has published research papers and won hackathons"
+        ],
+        "intended_audience": "Recruiters, Hiring Managers, and Professionals in the AI/ML and Software Development industries",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "What are the applications of computer vision in real-world scenarios?",
+            "How does the MediScan system work?",
+            "What are the benefits of using AI-driven industrial decarbonization platforms?",
+            "What are the key skills required to become an AI/ML Engineer?",
+            "How can AI/ML be used to improve the pharmaceutical supply chain?"
+        ],
+        "conclusion": "Sweedel Rodrigues is a skilled AI/ML Engineer with a strong background in computer vision, 3D reconstruction, and full-stack applications, and has demonstrated his expertise through various projects and achievements.",
+        "metadata": {
+            "filename": "sweedelrodrigues_1779293623.pdf",
+            "total_pages": 1,
+            "word_count": 373,
+            "reading_time": 2,
+            "upload_time": "July 12, 2026, 04:10 PM"
+        }
+    },
+    "4c16034ec45dc55dc7fd1dbc0ab8cb3a2ce05e0e4d890bdcd05115b1c34bc9f9": {
+        "filename": "5th sem resultsheet.pdf",
+        "quick_summary": "The document contains the provisional results of a student from Dayananda Sagar College of Engineering, with grades for various courses in the 5th semester of the Bachelor of Information Science Engineering program. The results are subject to confirmation by the Controller of Examinations. The student has achieved a SGPA of 9.35.",
+        "detailed_summary": "The document provides the provisional grade extract for a student, SWEEDEL RODRIGUES, from Dayananda Sagar College of Engineering. The student is enrolled in the 5th semester of the Bachelor of Information Science Engineering program. The results show the student's grades for various courses, including Automata & Compiler Design, Artificial Intelligence and Machine Learning, Computer Networks, and more. The grades are based on a letter grading system, with O being outstanding, A+ being excellent, and so on. The student has achieved a SGPA of 9.35, indicating a strong academic performance. The document also provides information on the college's accreditation and affiliation, as well as the contact details for the Controller of Examinations.",
+        "purpose": "To provide provisional results to the student",
+        "topics": [
+            "Dayananda Sagar College of Engineering",
+            "Bachelor of Information Science Engineering",
+            "provisional results",
+            "grade extract",
+            "letter grading system",
+            "SGPA",
+            "accreditation",
+            "affiliation"
+        ],
+        "takeaways": [
+            "The student has achieved a SGPA of 9.35",
+            "The results are provisional and subject to confirmation",
+            "The college is accredited by the National Assessment and Accreditation Council (NAAC) with an 'A' grade"
+        ],
+        "intended_audience": "Students and faculty of Dayananda Sagar College of Engineering",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "What is the significance of the provisional results?",
+            "How is the SGPA calculated?",
+            "What are the implications of the letter grading system?",
+            "What is the role of the Controller of Examinations?",
+            "How does the college's accreditation impact the student's degree?"
+        ],
+        "conclusion": "The document provides a comprehensive overview of the student's academic performance in the 5th semester of the Bachelor of Information Science Engineering program at Dayananda Sagar College of Engineering.",
+        "metadata": {
+            "filename": "5th sem resultsheet.pdf",
+            "total_pages": 1,
+            "word_count": 307,
+            "reading_time": 2,
+            "upload_time": "July 12, 2026, 04:25 PM"
+        }
+    },
+    "ef8257646bb8eeddf669f8774eb848617e80247e074f89727336acfc829fae55": {
+        "filename": "Carbon edge.pdf",
+        "quick_summary": "The document discusses the Industrial Decarbonization Challenge, which aims to reduce carbon emissions in industrial processes using Industrial IoT and AI. The proposed solution, ARBON-EDGE, uses existing plant sensors and AI to detect energy waste and optimize processes. The system provides real-time analysis, anomaly detection, and actionable insights to reduce fuel, energy, and waste.",
+        "detailed_summary": "The Industrial Decarbonization Challenge is a significant problem in various industries, including cement and steel production. The ARBON-EDGE solution uses a combination of Industrial IoT sensors and AI to detect hidden energy waste and optimize complex industrial processes. The system integrates with existing SCADA systems and uses machine learning algorithms to analyze data from various sensors, including temperature, vibration, pressure, and load. The solution provides real-time analysis, anomaly detection, and actionable insights to reduce fuel, energy, and waste. The system also generates reports and dashboards to track progress and identify areas for improvement. The proposed solution has the potential to reduce CO2 emissions by 500-20,000 tons annually, reduce energy waste by 2-5%, and save costs by ₹10-25 crore annually.",
+        "purpose": "The main purpose of the document is to propose a solution to the Industrial Decarbonization Challenge using Industrial IoT and AI.",
+        "topics": [
+            "Industrial Decarbonization",
+            "Industrial IoT",
+            "AI",
+            "Energy Efficiency",
+            "SCADA",
+            "Machine Learning",
+            "Anomaly Detection",
+            "Optimization"
+        ],
+        "takeaways": [
+            "The ARBON-EDGE solution uses existing plant sensors and AI to detect energy waste and optimize processes",
+            "The system provides real-time analysis, anomaly detection, and actionable insights to reduce fuel, energy, and waste",
+            "The solution has the potential to reduce CO2 emissions, reduce energy waste, and save costs"
+        ],
+        "intended_audience": "The intended audience is likely industrial professionals, including plant managers, engineers, and sustainability experts.",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "How does the ARBON-EDGE solution integrate with existing SCADA systems?",
+            "What types of sensors are used to collect data for the AI engine?",
+            "How does the system detect anomalies and provide actionable insights?",
+            "What are the potential cost savings and CO2 reduction benefits of implementing the ARBON-EDGE solution?",
+            "How does the system handle data quality and noise from industrial sensors?"
+        ],
+        "conclusion": "The ARBON-EDGE solution has the potential to significantly reduce carbon emissions and improve energy efficiency in industrial processes using Industrial IoT and AI.",
+        "metadata": {
+            "filename": "Carbon edge.pdf",
+            "total_pages": 10,
+            "word_count": 2260,
+            "reading_time": 11,
+            "upload_time": "July 12, 2026, 04:32 PM"
+        }
+    }
+}
