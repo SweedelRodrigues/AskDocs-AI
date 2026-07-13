@@ -8,3 +8,4 @@ unstructured==0.15.0
 unstructured[pdf]==0.15.0
 nltk==3.8.1
 duckduckgo-search>=6.2.4
+pymupdf>=1.24.4

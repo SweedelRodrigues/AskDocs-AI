@@ -272,11 +272,55 @@ def get_cached_summary_by_filename(filename):
             return data
     return None
 
+@st.cache_data
+def render_pdf_page_as_png(pdf_path, page_num, highlight_text=None):
+    """
+    Renders a single PDF page as PNG bytes, optionally highlighting a specific text chunk.
+    """
+    import fitz
+    import re
+    doc = fitz.open(pdf_path)
+    page = doc.load_page(page_num)
+    
+    if highlight_text:
+        # Normalize whitespace in highlight_text
+        norm_text = re.sub(r'\s+', ' ', highlight_text.strip())
+        
+        # 1. Try search with normalized whitespace
+        text_instances = page.search_for(norm_text)
+        
+        # 2. Try raw chunk search
+        if not text_instances:
+            text_instances = page.search_for(highlight_text)
+            
+        # 3. Try splitting the chunk into sentences/phrases if the exact full block is not found
+        if not text_instances:
+            phrases = [p.strip() for p in re.split(r'[.\n!?;]+', highlight_text) if len(p.strip()) > 15]
+            for phrase in phrases:
+                norm_phrase = re.sub(r'\s+', ' ', phrase)
+                insts = page.search_for(norm_phrase)
+                if not insts:
+                    insts = page.search_for(phrase)
+                text_instances.extend(insts)
+                
+        # 4. Try searching for the first 30 chars as fallback
+        if not text_instances and len(norm_text) > 30:
+            text_instances = page.search_for(norm_text[:30])
+            
+        # Draw highlight annotations on all matching rects
+        for rect in text_instances:
+            page.add_highlight_annot(rect)
+            
+    # Render page to a clean PNG image at 150 DPI for rich premium readability
+    pix = page.get_pixmap(dpi=150)
+    png_bytes = pix.tobytes("png")
+    doc.close()
+    return png_bytes
+
 def render_pdf_preview(filename):
     """
-    Renders the PDF using st.pdf natively if possible. Falls back to a robust,
-    multi-layered nested HTML viewer (Object -> Embed -> Iframe) and provides
-    a download button as a final backup.
+    Renders a PDF page-by-page as high-quality PNGs with visual text highlighting
+    for retrieved citation chunks. Fallback is a direct download button.
     """
     upload_dir = os.path.join(working_dir, "uploaded_docs")
     upload_path = os.path.join(upload_dir, filename)
@@ -284,7 +328,6 @@ def render_pdf_preview(filename):
     data_path = os.path.join(data_dir, filename)
     path_to_use = upload_path if os.path.exists(upload_path) else (data_path if os.path.exists(data_path) else None)
     
-    # 4. Path and existence checks
     if not path_to_use:
         st.error(f"❌ Error: The document '{filename}' could not be located in the uploads directory.")
         return
@@ -294,66 +337,71 @@ def render_pdf_preview(filename):
         return
         
     try:
-        # 8. Exception handling: Check if the PDF can be opened and read successfully
-        with open(path_to_use, "rb") as f:
-            pdf_bytes = f.read()
-            if len(pdf_bytes) == 0:
-                raise ValueError("PDF file is empty (0 bytes).")
-                
-        # 2. Check for native PDF rendering (st.pdf)
-        try:
-            # st.pdf raises StreamlitAPIException if streamlit-pdf is not installed
-            st.pdf(path_to_use, height=600)
-            return  # Rendered natively!
-        except Exception:
-            # Fall through to HTML embed / download button fallback if st.pdf fails
-            pass
-            
-        # 3. Fallback: Multi-layered embedded PDF object tag
-        base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-        pdf_html = textwrap.dedent(
-            f"""
-            <object data="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="600px" style="border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;">
-                <embed src="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="600px" style="border-radius: 12px;" />
-                <iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="600px" style="border: none;">
-                    <p style="color: #cbd5e1; padding: 20px; text-align: center;">This browser does not support embedding PDF files. Please download the document below.</p>
-                </iframe>
-            </object>
-            """
-        )
-        st.markdown(pdf_html, unsafe_allow_html=True)
-        
-        # 9. Download fallback button
-        st.write("")
-        st.download_button(
-            label="📥 Download PDF Document",
-            data=pdf_bytes,
-            file_name=filename,
-            mime="application/pdf",
-            use_container_width=True
-        )
-        
-    except FileNotFoundError:
-        st.error(f"❌ Error: The file '{filename}' was not found. Please re-upload it.")
-    except PermissionError:
-        st.error(f"❌ Error: Permission denied. Unable to read the file '{filename}'. Check file permissions.")
-    except ValueError as ve:
-        st.error(f"❌ Error: Corrupted or unsupported PDF - {str(ve)}")
+        import fitz
+        doc = fitz.open(path_to_use)
+        total_pages = doc.page_count
+        doc.close()
     except Exception as e:
-        # 9. Rendering fails: display user-friendly message and download button
-        st.error(f"⚠️ PDF rendering is unavailable or failed: {str(e)}")
+        st.error(f"❌ Error loading PDF file: {str(e)}")
+        return
+        
+    # Ensure session state variables for active page and selected document are initialized
+    if "active_page" not in st.session_state or st.session_state.get("active_page_doc") != filename:
+        st.session_state.active_page = 0
+        st.session_state.active_page_doc = filename
+        
+    active_page = max(0, min(st.session_state.active_page, total_pages - 1))
+    st.session_state.active_page = active_page
+    
+    # Render active text highlight if active
+    highlight_text = None
+    if "active_text" in st.session_state and st.session_state.active_text:
+        highlight_text = st.session_state.active_text
+        st.markdown(
+            f"""
+            <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+                <span style="color: #a855f7; font-weight: 600;">💡 Active RAG Citation Highlight:</span>
+                <p style="font-size: 12.2px; color: #94a3b8; margin: 6px 0 10px 0; font-style: italic; line-height: 1.4;">"{highlight_text[:180]}..."</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        if st.button("Clear Highlight", key="clear_hl_btn", use_container_width=True):
+            st.session_state.active_text = ""
+            st.rerun()
+            
+    # Page Navigation Controls Bar
+    col_prev, col_num, col_next = st.columns([0.25, 0.5, 0.25])
+    with col_prev:
+        if st.button("◀️ Prev Page", key="prev_pg_btn", disabled=(active_page == 0), use_container_width=True):
+            st.session_state.active_page = active_page - 1
+            st.rerun()
+    with col_num:
+        st.markdown(f"<div style='text-align: center; font-weight: 600; padding-top: 6px; color: #a855f7; font-size: 14px;'>Page {active_page + 1} of {total_pages}</div>", unsafe_allow_html=True)
+    with col_next:
+        if st.button("Next Page ▶️", key="next_pg_btn", disabled=(active_page == total_pages - 1), use_container_width=True):
+            st.session_state.active_page = active_page + 1
+            st.rerun()
+
+    # Display a subtle loading animation / spinner while page loads
+    with st.spinner("Rendering PDF page..."):
         try:
-            with open(path_to_use, "rb") as f:
-                fallback_bytes = f.read()
-            st.download_button(
-                label="📥 Download PDF Document (Fallback)",
-                data=fallback_bytes,
-                file_name=filename,
-                mime="application/pdf",
-                use_container_width=True
-            )
-        except Exception:
-            st.error("❌ Critical: Unable to read file content for download.")
+            img_bytes = render_pdf_page_as_png(path_to_use, active_page, highlight_text)
+            st.image(img_bytes, use_column_width=True)
+        except Exception as e:
+            st.error(f"⚠️ Page rendering failed: {str(e)}")
+            try:
+                with open(path_to_use, "rb") as f:
+                    pdf_bytes = f.read()
+                st.download_button(
+                    label="📥 Download PDF Document (Fallback)",
+                    data=pdf_bytes,
+                    file_name=filename,
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            except Exception:
+                pass
 
 def render_document_metadata(metadata):
     """
@@ -467,7 +515,12 @@ def render_document_dashboard(filename):
         render_document_metadata(summary_data.get("metadata", {}))
         
         # 2. PDF Preview Card
-        with st.expander("👁️ Preview PDF Document", expanded=False):
+        # Expand preview if we have an active citation highlighted
+        preview_expanded = False
+        if "active_text" in st.session_state and st.session_state.active_text:
+            preview_expanded = True
+            
+        with st.expander("👁️ Preview PDF Document", expanded=preview_expanded):
             render_pdf_preview(filename)
             
         st.divider()
@@ -886,6 +939,62 @@ def inject_custom_assets():
             }
             showToast('Feedback recorded! Thank you.');
         }
+
+        function setCitation(doc, page, msgIdx, srcIdx) {
+            let targetInput = null;
+            // 1. Find all stTextInput containers in parent context
+            const wrappers = window.parent.document.querySelectorAll('[data-testid="stTextInput"]');
+            for (const wrapper of wrappers) {
+                const label = wrapper.querySelector('label');
+                if (label && label.innerText.trim() === "Active Citation Helper") {
+                    targetInput = wrapper.querySelector('input');
+                    break;
+                }
+            }
+            // 2. Fallback to local document wrappers search
+            if (!targetInput) {
+                const localWrappers = document.querySelectorAll('[data-testid="stTextInput"]');
+                for (const wrapper of localWrappers) {
+                    const label = wrapper.querySelector('label');
+                    if (label && label.innerText.trim() === "Active Citation Helper") {
+                        targetInput = wrapper.querySelector('input');
+                        break;
+                    }
+                }
+            }
+            // 3. Fallback: Search all inputs for aria-label or placeholder as backup
+            if (!targetInput) {
+                const inputs = window.parent.document.querySelectorAll('input');
+                for (const input of inputs) {
+                    if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
+                        targetInput = input;
+                        break;
+                    }
+                }
+            }
+            if (!targetInput) {
+                const localInputs = document.querySelectorAll('input');
+                for (const input of localInputs) {
+                    if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
+                        targetInput = input;
+                        break;
+                    }
+                }
+            }
+            if (targetInput) {
+                const value = JSON.stringify({doc: doc, page: page, msgIdx: msgIdx, srcIdx: srcIdx, rand: Math.random()});
+                const lastValue = targetInput.value;
+                targetInput.value = value;
+                const tracker = targetInput._valueTracker;
+                if (tracker) {
+                    tracker.setValue(lastValue);
+                }
+                targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                console.error("Active Citation Helper input element not found!");
+            }
+        }
         </script>
         """,
         unsafe_allow_html=True
@@ -1143,11 +1252,24 @@ def render_chat_messages():
             
             if sources or web_sources:
                 sources_html += '<div class="source-section"><div class="source-title">Sources</div><div class="source-grid">'
-                for src in sources:
+                import urllib.parse
+                for s_idx, src in enumerate(sources):
                     name = src["name"]
                     page = src.get("page", None)
                     page_str = f"Page {page + 1}" if page is not None else "Page N/A"
-                    sources_html += f"""<div class="source-card">
+                    safe_name = urllib.parse.quote(name)
+                    
+                    if page is not None:
+                        js_name = name.replace("'", "\\'")
+                        sources_html += f"""<a href="javascript:void(0)" onclick="setCitation('{js_name}', {page}, {idx}, {s_idx})" class="source-card" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+<span class="source-card-icon">📄</span>
+<div class="source-card-details">
+<span class="source-card-name" title="{name}">{name}</span>
+<span class="source-card-page" style="color: #a855f7;">{page_str} (Click to view)</span>
+</div>
+</a>"""
+                    else:
+                        sources_html += f"""<div class="source-card" style="display: flex; align-items: center; gap: 8px;">
 <span class="source-card-icon">📄</span>
 <div class="source-card-details">
 <span class="source-card-name" title="{name}">{name}</span>
@@ -1363,6 +1485,48 @@ if "conversationsal_chain" not in st.session_state:
         st.session_state.vectorstore
     )
 
+# Hidden text input citation helper
+st.markdown(
+    """
+    <style>
+    div[data-testid="stTextInput"] {
+        display: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+citation_helper = st.text_input("Active Citation Helper", placeholder="Active Citation Helper", key="active_citation_helper", value="")
+
+if "last_processed_citation_rand" not in st.session_state:
+    st.session_state.last_processed_citation_rand = None
+
+if citation_helper:
+    try:
+        import json
+        data = json.loads(citation_helper)
+        rand_id = data.get("rand")
+        if rand_id != st.session_state.last_processed_citation_rand:
+            st.session_state.last_processed_citation_rand = rand_id
+            doc_name = data.get("doc")
+            page_num = data.get("page")
+            m_idx = data.get("msgIdx")
+            s_idx = data.get("srcIdx")
+            
+            if doc_name:
+                st.session_state.selected_document = doc_name
+                st.session_state.active_page = int(page_num)
+                st.session_state.expand_insights = True
+                
+                # Fetch text chunk from message sources
+                if 0 <= m_idx < len(st.session_state.chat_history):
+                    msg = st.session_state.chat_history[m_idx]
+                    if 0 <= s_idx < len(msg.get("sources", [])):
+                        src = msg["sources"][s_idx]
+                        st.session_state.active_text = src.get("text", "")
+    except Exception as e:
+        logger.error(f"Error parsing citation helper JSON: {str(e)}")
+
 # Inject CSS and JavaScript assets
 inject_custom_assets()
 
@@ -1522,7 +1686,12 @@ if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] =
                     source_path = doc.metadata.get("source", "Unknown")
                     source_name = os.path.basename(source_path)
                     page = doc.metadata.get("page", None)
-                    source_info = {"name": source_name, "page": page}
+                    source_info = {
+                        "name": source_name,
+                        "page": page,
+                        "text": doc.page_content,
+                        "id": doc.metadata.get("id") or getattr(doc, "id", "")
+                    }
                     if source_info not in sources:
                         sources.append(source_info)
 
@@ -1575,6 +1744,14 @@ if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] =
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
         
+        if sources:
+            first_src = sources[0]
+            st.session_state.selected_document = first_src["name"]
+            st.session_state.active_page = first_src["page"]
+            st.session_state.active_page_doc = first_src["name"]
+            st.session_state.active_text = first_src.get("text", "")
+            st.session_state.expand_insights = True
+            
     st.rerun()
 
 # Input box at bottom

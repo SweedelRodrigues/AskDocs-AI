@@ -264,5 +264,83 @@
             "reading_time": 1,
             "upload_time": "July 13, 2026, 09:42 AM"
         }
+    },
+    "0a35a6d2f42ccf09f3f9ce62fed4457d669bd4da07dd2aacf4db6e820d9433cb": {
+        "filename": "ASHA_Saathi_Product_Document.pdf",
+        "quick_summary": "ASHA Saathi is a comprehensive digital platform designed to support ASHA workers in India, aiming to reduce their workload by 75% through automation and digitization of tasks, reports, and health screening. The platform is built using Flutter, FastAPI, and GenAI, and is tailored to the specific needs of ASHA workers, including offline functionality and support for multiple languages. With its 8 core modules, ASHA Saathi provides a unified solution for ASHA workers to manage their daily tasks, families, and health records, ultimately improving the efficiency and effectiveness of their work.",
+        "detailed_summary": "ASHA Saathi is an all-in-one digital co-worker for ASHA workers, providing a range of features and tools to support their daily tasks and responsibilities. The platform is designed to address the specific challenges faced by ASHA workers, including the lack of digital tools, poor internet connectivity, and limited access to healthcare resources. With its offline-first approach, language support, and user-friendly interface, ASHA Saathi enables ASHA workers to efficiently manage their workload, reduce errors, and improve the quality of care they provide to their communities. The platform's 8 core modules cover key areas such as family and community registry, task and visit planning, digital registers and reports, incentive tracking, and health screening, among others. By leveraging technology and innovation, ASHA Saathi has the potential to transform the way ASHA workers operate and improve the overall healthcare ecosystem in India.",
+        "purpose": "The primary purpose of ASHA Saathi is to provide a comprehensive digital platform that supports ASHA workers in their daily tasks and responsibilities, ultimately improving the efficiency and effectiveness of their work and the quality of care they provide to their communities.",
+        "topics": [
+            "ASHA workers",
+            "digital health",
+            "healthcare technology",
+            "India",
+            "community health",
+            "health screening",
+            "task management",
+            "reporting",
+            "incentive tracking"
+        ],
+        "takeaways": [
+            "ASHA Saathi is a comprehensive digital platform designed to support ASHA workers",
+            "The platform aims to reduce ASHA workers' workload by 75% through automation and digitization",
+            "ASHA Saathi provides a range of features and tools to support ASHA workers' daily tasks and responsibilities"
+        ],
+        "intended_audience": "The intended audience for ASHA Saathi is ASHA workers, healthcare professionals, and policymakers interested in improving the healthcare ecosystem in India.",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "What are the key features and modules of ASHA Saathi?",
+            "How does ASHA Saathi address the specific challenges faced by ASHA workers?",
+            "What is the potential impact of ASHA Saathi on the healthcare ecosystem in India?",
+            "How does ASHA Saathi support ASHA workers in their daily tasks and responsibilities?",
+            "What are the technical specifications and requirements for ASHA Saathi?"
+        ],
+        "conclusion": "ASHA Saathi has the potential to transform the way ASHA workers operate and improve the overall healthcare ecosystem in India by providing a comprehensive digital platform that supports their daily tasks and responsibilities.",
+        "metadata": {
+            "filename": "ASHA_Saathi_Product_Document.pdf",
+            "total_pages": 22,
+            "word_count": 4773,
+            "reading_time": 24,
+            "upload_time": "July 13, 2026, 11:23 AM"
+        }
+    },
+    "3be008fcf307c7d5840ce6d40db144928149d43eea722cbbf9cb32ae1d3a4c87": {
+        "filename": "paper1.pdf",
+        "quick_summary": "Respiratory tract infections (RTIs) are a significant problem in clinical medicine, accounting for a substantial portion of antibiotic prescriptions and medical consultations. The pathophysiology of RTIs involves a complex interplay between the host's immune system and the invading microorganism. Understanding the clinical syndromes and microbiological aspects of RTIs is crucial for diagnosis and treatment. This chapter provides an overview of key concepts related to RTIs, with an emphasis on clinical and microbiological aspects.",
+        "detailed_summary": "RTIs can be divided into upper and lower tract infections, with the upper tract including conditions such as otitis media, mastoiditis, sinusitis, and pharyngitis. The lower tract includes tracheobronchitis, bronchiolitis, and pneumonia. The pathophysiology of RTIs involves the interaction between the host's immune system and the invading microorganism, with the host's innate and acquired immune defenses playing a crucial role in determining the outcome of the infection. The clinical syndromes of RTIs can be influenced by various factors, including the patient's immune status, underlying medical conditions, and exposure to certain microorganisms. Laboratory testing, including blood counts, cultures, and molecular methods, can aid in the diagnosis of RTIs. Understanding the epidemiology and microbiology of RTIs is essential for developing effective treatment strategies and preventing the spread of infection.",
+        "purpose": "The purpose of this document is to provide a comprehensive overview of respiratory tract infections, including their pathophysiology, clinical syndromes, and microbiological aspects, in order to aid in the diagnosis and treatment of these conditions.",
+        "topics": [
+            "Respiratory tract infections",
+            "Pathophysiology",
+            "Clinical syndromes",
+            "Microbiology",
+            "Diagnosis",
+            "Treatment",
+            "Upper respiratory tract infections",
+            "Lower respiratory tract infections",
+            "Immune system"
+        ],
+        "takeaways": [
+            "RTIs are a significant problem in clinical medicine",
+            "Understanding the pathophysiology of RTIs is crucial for diagnosis and treatment",
+            "The clinical syndromes of RTIs can be influenced by various factors, including the patient's immune status and underlying medical conditions"
+        ],
+        "intended_audience": "Healthcare professionals, including physicians, nurses, and respiratory therapists, who are involved in the diagnosis and treatment of respiratory tract infections.",
+        "difficulty_level": "Advanced",
+        "suggested_questions": [
+            "What are the most common causes of respiratory tract infections?",
+            "How do the host's immune defenses contribute to the pathophysiology of RTIs?",
+            "What are the key factors that influence the clinical syndromes of RTIs?",
+            "What are the most effective treatment strategies for RTIs?",
+            "How can healthcare professionals prevent the spread of RTIs?"
+        ],
+        "conclusion": "In conclusion, respiratory tract infections are a complex and multifaceted problem that requires a comprehensive understanding of their pathophysiology, clinical syndromes, and microbiological aspects in order to develop effective treatment strategies and prevent the spread of infection.",
+        "metadata": {
+            "filename": "paper1.pdf",
+            "total_pages": 8,
+            "word_count": 6258,
+            "reading_time": 31,
+            "upload_time": "July 13, 2026, 11:48 AM"
+        }
     }
 }
