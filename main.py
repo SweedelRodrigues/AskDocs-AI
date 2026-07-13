@@ -11,6 +11,9 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import CharacterTextSplitter
+import web_search
+import logging
+logger = logging.getLogger(__name__)
 
 import hashlib
 import textwrap
@@ -1123,10 +1126,22 @@ def render_chat_messages():
             html_content = format_message_content(content)
             escaped_raw = html.escape(content)
             
+            # Source Badge rendering
+            badge_html = ""
+            source_type = msg.get("source_type", None)
+            if source_type == "uploaded_docs":
+                badge_html = '<div class="source-badge doc-badge">📄 Uploaded Documents</div>'
+            elif source_type == "web":
+                badge_html = '<div class="source-badge web-badge">🌐 Web</div>'
+            elif source_type == "hybrid":
+                badge_html = '<div class="source-badge hybrid-badge">📄 + 🌐 Hybrid</div>'
+            
             # Sources rendering
             sources_html = ""
             sources = msg.get("sources", [])
-            if sources:
+            web_sources = msg.get("web_sources", [])
+            
+            if sources or web_sources:
                 sources_html += '<div class="source-section"><div class="source-title">Sources</div><div class="source-grid">'
                 for src in sources:
                     name = src["name"]
@@ -1139,10 +1154,26 @@ def render_chat_messages():
 <span class="source-card-page">{page_str}</span>
 </div>
 </div>"""
+                for wsrc in web_sources:
+                    name = wsrc.get("name", "Web Source")
+                    url = wsrc.get("url", "#")
+                    snippet = wsrc.get("snippet", "")
+                    short_snippet = (snippet[:150] + "...") if len(snippet) > 150 else snippet
+                    sources_html += f"""<a href="{url}" target="_blank" class="source-card web-source-card" style="text-decoration: none; color: inherit; display: block; padding: 12px; height: auto; min-height: 80px;">
+<div style="display: flex; align-items: flex-start; gap: 12px;">
+<span class="source-card-icon" style="margin-top: 2px;">🌐</span>
+<div class="source-card-details" style="flex: 1; overflow: hidden;">
+<span class="source-card-name" title="{name}" style="font-weight: 600; color: #e2e8f0; display: block; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; font-size: 13px;">{name}</span>
+<span class="source-card-page" style="font-size: 10.5px; color: #a855f7; display: block; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; margin-top: 2px;">{url}</span>
+<span class="source-card-snippet" style="font-size: 11px; color: #94a3b8; display: block; margin-top: 6px; line-height: 1.4; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{html.escape(short_snippet)}</span>
+</div>
+</div>
+</a>"""
                 sources_html += '</div></div>'
             
             chat_html += f"""<div class="message-row assistant-row">
 <div class="message-bubble assistant-bubble">
+{badge_html}
 <div class="message-text" id="msg-{idx}" data-raw-text="{escaped_raw}">{html_content}</div>
 {sources_html}
 <div class="feedback-actions">
@@ -1172,6 +1203,128 @@ def render_input_box():
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
         st.rerun()
+
+def get_selected_doc_path(filename):
+    if not filename:
+        return None
+    upload_path = os.path.join(working_dir, "uploaded_docs", filename)
+    data_path = os.path.join(working_dir, "data", filename)
+    if os.path.exists(upload_path):
+        return upload_path
+    elif os.path.exists(data_path):
+        return data_path
+    return None
+
+def get_chat_history_str(limit=5):
+    history_msgs = []
+    recent_history = st.session_state.chat_history[-limit:] if len(st.session_state.chat_history) > 0 else []
+    for msg in recent_history:
+        if msg == st.session_state.chat_history[-1] and msg["role"] == "user":
+            continue
+        role = "User" if msg["role"] == "user" else "Assistant"
+        content = msg["content"]
+        history_msgs.append(f"{role}: {content}")
+    return "\n".join(history_msgs)
+
+def generate_rag_answer_and_check_completeness(query, context_text, history_str=""):
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+    history_context = f"\nConversation History:\n{history_str}\n" if history_str else ""
+    prompt = f"""You are an expert document assistant. You answer questions based on the provided document context.
+Your goal is to answer the query using the context, taking the conversation history into account if relevant, and evaluate if the context was sufficient to answer the query completely.
+
+Format your response as a valid JSON object. Do NOT include any markdown code blocks, triple backticks (```json), or leading/trailing conversational text. Only output the raw JSON object string.
+
+The JSON object MUST contain the following keys exactly:
+1. "can_answer": true if the context contains ANY information that is relevant to help construct an answer (even a partial or brief one). Set this to true as long as there is any topic or keyword overlap that helps address the user query.
+2. "is_complete": true if the context contains enough information to answer the user query fully. Set this to false only if the user query explicitly asks for specific external details, facts, or questions that are completely absent from the context and require a web search. If the user query is simple and the context covers the core answer, set this to true.
+3. "answer": A natural, direct, and detailed answer to the query based ONLY on the provided context. If can_answer is false, this should be empty or a brief statement of what is missing.
+4. "missing_info": A brief description of what parts of the user's query are not addressed by the context, if applicable.
+
+Context:
+{context_text}
+{history_context}
+User Query:
+{query}
+
+JSON Output:"""
+
+    try:
+        response = llm.invoke(prompt)
+        raw_content = response.content.strip()
+        if raw_content.startswith("```json"):
+            raw_content = raw_content[7:]
+        elif raw_content.startswith("```"):
+            raw_content = raw_content[3:]
+        if raw_content.endswith("```"):
+            raw_content = raw_content[:-3]
+        raw_content = raw_content.strip()
+        
+        data = json.loads(raw_content)
+        return (
+            data.get("answer", "").strip(),
+            bool(data.get("is_complete")),
+            bool(data.get("can_answer")),
+            data.get("missing_info", "").strip()
+        )
+    except Exception as e:
+        logger.error(f"Error checking completeness: {str(e)}")
+        return "", False, False, ""
+
+def generate_hybrid_answer(query, pdf_context, web_context, history_str=""):
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+    history_context = f"\nConversation History:\n{history_str}\n" if history_str else ""
+    prompt = f"""You are an assistant that combines information from uploaded PDF documents and web search results.
+Answer the user's query using both sources, taking the conversation history into account if relevant.
+You MUST clearly separate the answer into two distinct sections as shown below:
+
+📄 From Uploaded Documents
+[Detailed answer based ONLY on the uploaded PDF document context. Do not include any web information here. If the PDFs don't mention a specific point, do not talk about it in this section.]
+
+🌐 Additional Information from the Web
+[Detailed answer based ONLY on the web search results, supplementing the PDF context to fully answer the query. Do not repeat what was already said in the PDF section, focus on the additional/missing details.]
+
+If one of the sources doesn't contain any useful information, omit its section and only output the other section.
+Do not mention source numbers or cite files in the web section. Keep the tone professional, direct, and helpful.
+
+PDF Document Context:
+{pdf_context}
+
+Web Search Context:
+{web_context}
+{history_context}
+User Query:
+{query}
+
+Answer:"""
+
+    try:
+        response = llm.invoke(prompt)
+        return response.content.strip()
+    except Exception as e:
+        logger.error(f"Error generating hybrid answer: {str(e)}")
+        return "Error generating hybrid answer."
+
+def generate_web_answer(query, web_context, history_str=""):
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
+    history_context = f"\nConversation History:\n{history_str}\n" if history_str else ""
+    prompt = f"""You are a helpful assistant. Answer the user query using the provided web search results, taking the conversation history into account if relevant.
+Be factual, direct, and concise. Do not hallucinate.
+If the web search results do not contain enough information to answer the question, respond with exactly: "I couldn't find reliable information in your uploaded documents or trusted web sources."
+
+Web Search Context:
+{web_context}
+{history_context}
+User Query:
+{query}
+
+Answer:"""
+
+    try:
+        response = llm.invoke(prompt)
+        return response.content.strip()
+    except Exception as e:
+        logger.error(f"Error generating web answer: {str(e)}")
+        return "Error generating web answer."
 
 # ----------------- Main Flow -----------------
 
@@ -1328,28 +1481,97 @@ if st.session_state.chat_history and st.session_state.chat_history[-1]["role"] =
                 })
                 st.rerun()
 
-        # Invoke RAG chain
-        response = st.session_state.conversationsal_chain(
-            {"question": user_input}
-        )
-        
-        assistant_response = response["answer"]
-        source_docs = response.get("source_documents", [])
-        
+        # Get configurable similarity threshold
+        similarity_threshold = config_data.get("SIMILARITY_THRESHOLD", 1.3)
+
+        # Retrieve relevant chunks from Chroma
+        filter_dict = None
+        if st.session_state.get("selected_document"):
+            doc_path = get_selected_doc_path(st.session_state.selected_document)
+            if doc_path:
+                filter_dict = {"source": doc_path}
+
+        assistant_response = ""
+        source_type = None
         sources = []
-        for doc in source_docs:
-            source_path = doc.metadata.get("source", "Unknown")
-            source_name = os.path.basename(source_path)
-            page = doc.metadata.get("page", None)
+        web_sources = []
+        
+        # Get chat history for context
+        history_str = get_chat_history_str()
+
+        if st.session_state.indexed_documents:
+            try:
+                results_with_scores = st.session_state.vectorstore.similarity_search_with_score(
+                    user_input, k=4, filter=filter_dict
+                )
+            except Exception as e:
+                logger.error(f"Error querying Chroma: {str(e)}")
+                results_with_scores = []
+        else:
+            results_with_scores = []
+
+        # Filter chunks by threshold
+        relevant_chunks = [doc for doc, score in results_with_scores if score <= similarity_threshold]
+
+        if relevant_chunks:
+            pdf_context = "\n\n".join([doc.page_content for doc in relevant_chunks])
+            pdf_ans, is_complete, can_answer, missing_info = generate_rag_answer_and_check_completeness(user_input, pdf_context, history_str)
             
-            source_info = {"name": source_name, "page": page}
-            if source_info not in sources:
-                sources.append(source_info)
-                
+            if can_answer:
+                for doc in relevant_chunks:
+                    source_path = doc.metadata.get("source", "Unknown")
+                    source_name = os.path.basename(source_path)
+                    page = doc.metadata.get("page", None)
+                    source_info = {"name": source_name, "page": page}
+                    if source_info not in sources:
+                        sources.append(source_info)
+
+                if is_complete:
+                    assistant_response = pdf_ans
+                    source_type = "uploaded_docs"
+                else:
+                    # Hybrid flow
+                    try:
+                        web_results, provider = web_search.perform_web_search(user_input)
+                        web_context = "\n\n".join([f"Source: {res['title']}\nURL: {res['link']}\nSnippet: {res['snippet']}" for res in web_results])
+                        for res in web_results:
+                            web_sources.append({"name": res["title"], "url": res["link"], "snippet": res.get("snippet", "")})
+                    except Exception as e:
+                        logger.error(f"Web search failed in hybrid flow: {str(e)}")
+                        web_context = ""
+                        
+                    if web_context:
+                        assistant_response = generate_hybrid_answer(user_input, pdf_context, web_context, history_str)
+                        source_type = "hybrid"
+                    else:
+                        assistant_response = pdf_ans
+                        source_type = "uploaded_docs"
+            else:
+                relevant_chunks = []
+
+        if not relevant_chunks:
+            try:
+                web_results, provider = web_search.perform_web_search(user_input)
+                web_context = "\n\n".join([f"Source: {res['title']}\nURL: {res['link']}\nSnippet: {res['snippet']}" for res in web_results])
+                for res in web_results:
+                    web_sources.append({"name": res["title"], "url": res["link"], "snippet": res.get("snippet", "")})
+            except Exception as e:
+                logger.error(f"Web search failed: {str(e)}")
+                web_context = ""
+
+            if web_context:
+                assistant_response = generate_web_answer(user_input, web_context, history_str)
+                source_type = "web"
+            else:
+                assistant_response = "I couldn't find reliable information in your uploaded documents or trusted web sources."
+                source_type = "web"
+
         st.session_state.chat_history.append({
             "role": "assistant",
             "content": assistant_response,
             "sources": sources,
+            "web_sources": web_sources,
+            "source_type": source_type,
             "timestamp": datetime.now().strftime("%I:%M %p")
         })
         

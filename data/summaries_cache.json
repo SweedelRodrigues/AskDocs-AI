@@ -227,5 +227,42 @@
             "reading_time": 11,
             "upload_time": "July 12, 2026, 04:32 PM"
         }
+    },
+    "d3f980cb5b0ab01f7dc525cdeb24e5c1596958aeb9438a267df1c14f49a91e8b": {
+        "filename": "12_07_26_222603_7295592887926.pdf",
+        "quick_summary": "The document is a NEFT challan for a payment of INR 116779.00, with a merchant order amount of INR 116764.00 and customer charges of INR 12.71. The challan is for use at non-SBI branches only and expires on 19-Jul-2026.",
+        "detailed_summary": "The document provides detailed information about a NEFT challan, including the challan number, amount payable, merchant order amount, customer charges, and GST. It also includes the account number, beneficiary name, branch name, IFSC code, and other relevant details. The challan is for a payment to DAYANANDA SAGAR COLLEGE OF ENGINEERING, with a merchant order number and GSTIN. The document includes instructions for use, including the requirement to use the challan at non-SBI branches only and to make payment before the expiry date. The challan generation date and time are also provided, along with the customer's mobile number and email ID.",
+        "purpose": "The main purpose of the document is to facilitate a NEFT payment from a customer to a merchant.",
+        "topics": [
+            "NEFT",
+            "Challan",
+            "Payment",
+            "SBIePay",
+            "GST",
+            "Merchant Order",
+            "Customer Charges"
+        ],
+        "takeaways": [
+            "The challan is for use at non-SBI branches only",
+            "Payment must be made before the expiry date",
+            "Any change in the amount mentioned in the challan will not be accepted"
+        ],
+        "intended_audience": "The intended audience is the customer making the payment and the merchant receiving the payment.",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "What is the purpose of the NEFT challan?",
+            "What are the instructions for using the challan?",
+            "What is the expiry date of the challan?",
+            "What are the customer charges and GST mentioned in the challan?",
+            "What is the merchant order number and GSTIN?"
+        ],
+        "conclusion": "The document provides a clear and detailed record of a NEFT payment, including all relevant details and instructions for use.",
+        "metadata": {
+            "filename": "12_07_26_222603_7295592887926.pdf",
+            "total_pages": 1,
+            "word_count": 256,
+            "reading_time": 1,
+            "upload_time": "July 13, 2026, 09:42 AM"
+        }
     }
 }
