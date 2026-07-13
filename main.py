@@ -387,7 +387,7 @@ def render_pdf_preview(filename):
     with st.spinner("Rendering PDF page..."):
         try:
             img_bytes = render_pdf_page_as_png(path_to_use, active_page, highlight_text)
-            st.image(img_bytes, use_column_width=True)
+            st.image(img_bytes, use_container_width=True)
         except Exception as e:
             st.error(f"⚠️ Page rendering failed: {str(e)}")
             try:
