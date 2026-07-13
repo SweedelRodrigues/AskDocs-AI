@@ -1,17 +1,30 @@
-# Multi-Document AI Chatbot 📚🤖
+# AskDocs AI 📚🤖
 
-A Retrieval-Augmented Generation (RAG) chatbot that allows users to chat with multiple PDF documents using Generative AI.
+An intelligent **Retrieval-Augmented Generation (RAG)** chatbot that enables users to upload multiple PDF documents, interact with them using natural language, and receive accurate, citation-backed answers. When information is unavailable in the uploaded documents, the chatbot intelligently performs a web search and provides hybrid responses with clear source attribution.
 
-## Features
+## ✨ Features
 
-* Multi-PDF Question Answering
+* Multi-PDF Upload & Processing
+* AI-Powered Document Summarization
+* AI-Generated Suggested Questions
+* Built-in PDF Preview
+* Conversational AI Chatbot
 * Semantic Search using Vector Embeddings
 * ChromaDB Vector Database
-* Conversational Memory
-* Groq + Llama Integration
-* Streamlit Interface
+* HuggingFace Sentence Transformer Embeddings
+* Groq LLM Integration
+* Multi-turn Conversational Memory
+* Similarity Threshold-based Retrieval
+* Intelligent Web Search Fallback
+* Hybrid PDF + Web Answer Generation
+* Interactive Page-wise Citations
+* Clickable Citation Navigation
+* Paragraph Highlighting in PDF Viewer
+* Clickable Web Source References
+* Hallucination Prevention
+* Modern Streamlit Interface
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 * Python
 * Streamlit
@@ -20,22 +33,14 @@ A Retrieval-Augmented Generation (RAG) chatbot that allows users to chat with mu
 * HuggingFace Embeddings
 * Groq API
 * Llama 3.3
+* Tavily Search
+* DuckDuckGo Search
+* Serper API
 
-## Architecture
+## 🏗️ Architecture
 
-PDFs → Text Chunking → Embeddings → ChromaDB → Retriever → LLM → Answer
+**PDFs → Text Extraction → Chunking → Embeddings → ChromaDB → Semantic Retrieval → Similarity Filtering → LLM Completeness Check → PDF Answer / Web Search Fallback → Hybrid Response**
 
-## Setup
+## 👨‍💻 Author
 
-1. Clone the repository
-2. Create a virtual environment
-3. Install dependencies:
-   pip install -r requirements.txt
-4. Add your Groq API key in config.json
-5. Run:
-   python vectorize_documents.py
-   streamlit run main.py
-
-## Author
-
-Sweedel Rodrigues
+**Sweedel Rodrigues**
