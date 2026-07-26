@@ -1,3 +1,10 @@
+try:
+    __import__('pysqlite3')
+    import sys
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass
+
 import os
 import json
 import html
@@ -77,12 +84,23 @@ class ChromaDBFailureError(Exception):
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 
-config_data = json.load(
-    open(f"{working_dir}/config.json")
-)
+# Read Groq API Key from environment variable first, then fallback to config.json
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-GROQ_API_KEY = config_data["GROQ_API_KEY"]
-os.environ["GROQ_API_KEY"] = GROQ_API_KEY
+if not GROQ_API_KEY:
+    config_path = os.path.join(working_dir, "config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config_data = json.load(f)
+                GROQ_API_KEY = config_data.get("GROQ_API_KEY")
+        except Exception as e:
+            # Let it fallback or print warning
+            pass
+
+if GROQ_API_KEY:
+    os.environ["GROQ_API_KEY"] = GROQ_API_KEY
+
 
 def extract_document_metadata(docs, filepath):
     """
