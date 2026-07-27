@@ -84,19 +84,20 @@ class ChromaDBFailureError(Exception):
 
 working_dir = os.path.dirname(os.path.abspath(__file__))
 
+# Read config.json unconditionally to ensure config_data is defined
+config_data = {}
+config_path = os.path.join(working_dir, "config.json")
+if os.path.exists(config_path):
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config_data = json.load(f)
+    except Exception:
+        pass
+
 # Read Groq API Key from environment variable first, then fallback to config.json
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-
 if not GROQ_API_KEY:
-    config_path = os.path.join(working_dir, "config.json")
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config_data = json.load(f)
-                GROQ_API_KEY = config_data.get("GROQ_API_KEY")
-        except Exception as e:
-            # Let it fallback or print warning
-            pass
+    GROQ_API_KEY = config_data.get("GROQ_API_KEY")
 
 if GROQ_API_KEY:
     os.environ["GROQ_API_KEY"] = GROQ_API_KEY
