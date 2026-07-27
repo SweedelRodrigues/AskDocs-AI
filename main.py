@@ -1031,6 +1031,30 @@ def inject_custom_assets():
                     
                     targetInput.dispatchEvent(new parentWindow.Event('input', { bubbles: true }));
                     targetInput.dispatchEvent(new parentWindow.Event('change', { bubbles: true }));
+                    
+                    // Dispatch keydown Enter and blur to force Streamlit rerun
+                    try {
+                        const enterEvent = new parentWindow.KeyboardEvent('keydown', {
+                            key: 'Enter',
+                            code: 'Enter',
+                            keyCode: 13,
+                            which: 13,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        targetInput.dispatchEvent(enterEvent);
+                        console.log("Enter keydown event dispatched");
+                    } catch (ke) {
+                        console.warn("Failed to dispatch KeyboardEvent:", ke);
+                    }
+                    
+                    try {
+                        targetInput.dispatchEvent(new parentWindow.Event('blur', { bubbles: true }));
+                        console.log("Blur event dispatched");
+                    } catch (be) {
+                        console.warn("Failed to dispatch blur event:", be);
+                    }
+                    
                     console.log("Events dispatched successfully");
                 } else {
                     console.error("Active Citation Helper input element not found in parent document!");
