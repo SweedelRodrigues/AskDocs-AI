@@ -984,71 +984,6 @@ def inject_custom_assets():
                 }
             };
 
-            // Define setCitation on parent window
-            parentWindow.setCitation = function(doc, page, msgIdx, srcIdx) {
-                console.log("setCitation called on parent with:", doc, page, msgIdx, srcIdx);
-                let targetInput = null;
-                let targetBtn = null;
-                
-                // 1. Find the input element
-                try {
-                    targetInput = parentDoc.querySelector('input[aria-label="Active Citation Helper"]') ||
-                                  parentDoc.querySelector('input[placeholder="Active Citation Helper"]');
-                } catch (e) {
-                    console.error("Parent querySelector error:", e);
-                }
-                
-                if (!targetInput) {
-                    try {
-                        const wrappers = parentDoc.querySelectorAll('[data-testid="stTextInput"]');
-                        for (const wrapper of wrappers) {
-                            const label = wrapper.querySelector('label');
-                            if (label && (label.textContent || label.innerText || "").trim() === "Active Citation Helper") {
-                                targetInput = wrapper.querySelector('input');
-                                break;
-                            }
-                        }
-                    } catch (e) {
-                        console.error("Parent wrapper search error:", e);
-                    }
-                }
-
-                // 2. Find the trigger button
-                try {
-                    targetBtn = Array.from(parentDoc.querySelectorAll('button')).find(b => b.textContent.trim() === "Trigger Citation Rerun");
-                } catch (e) {
-                    console.error("Parent button search error:", e);
-                }
-                
-                if (targetInput && targetBtn) {
-                    const value = JSON.stringify({doc: doc, page: page, msgIdx: msgIdx, srcIdx: srcIdx, rand: Math.random()});
-                    console.log("Setting input value to:", value);
-                    
-                    try {
-                        const nativeValueSetter = Object.getOwnPropertyDescriptor(parentWindow.HTMLInputElement.prototype, "value").set;
-                        nativeValueSetter.call(targetInput, value);
-                    } catch (e) {
-                        targetInput.value = value;
-                    }
-                    
-                    const tracker = targetInput._valueTracker;
-                    if (tracker) {
-                        try {
-                            tracker.setValue("");
-                        } catch (e) {}
-                    }
-                    
-                    targetInput.dispatchEvent(new parentWindow.Event('input', { bubbles: true }));
-                    targetInput.dispatchEvent(new parentWindow.Event('change', { bubbles: true }));
-                    
-                    console.log("Clicking trigger button to force rerun");
-                    targetBtn.click();
-                    console.log("Trigger button clicked successfully");
-                } else {
-                    console.error("Required elements (input or trigger button) not found in parent document!", targetInput, targetBtn);
-                }
-            };
-
             // Attach click listener to parent document (capture phase)
             parentDoc.addEventListener('click', function(event) {
                 // Handle Copy trigger
@@ -1060,19 +995,6 @@ def inject_custom_assets():
                         parentWindow.copyToClipboard(targetId);
                     }
                     return;
-                }
-
-                // Handle Citation trigger
-                const trigger = event.target.closest('.citation-trigger');
-                if (trigger) {
-                    console.log("Citation clicked! Element:", trigger);
-                    const doc = trigger.getAttribute('data-doc');
-                    const page = parseInt(trigger.getAttribute('data-page'));
-                    const msgIdx = parseInt(trigger.getAttribute('data-msg-idx'));
-                    const srcIdx = parseInt(trigger.getAttribute('data-src-idx'));
-                    if (doc && !isNaN(page)) {
-                        parentWindow.setCitation(doc, page, msgIdx, srcIdx);
-                    }
                 }
             }, true);
 
@@ -1345,20 +1267,11 @@ def render_chat_messages():
                     page_str = f"Page {page + 1}" if page is not None else "Page N/A"
                     safe_name = urllib.parse.quote(name)
                     
-                    if page is not None:
-                        escaped_name = html.escape(name)
-                        sources_html += f"""<div class="source-card citation-trigger" data-doc="{escaped_name}" data-page="{page}" data-msg-idx="{idx}" data-src-idx="{s_idx}" style="cursor: pointer; text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+                    escaped_name = html.escape(name)
+                    sources_html += f"""<div class="source-card" style="display: flex; align-items: center; gap: 8px;">
 <span class="source-card-icon">📄</span>
 <div class="source-card-details">
 <span class="source-card-name" title="{escaped_name}">{escaped_name}</span>
-<span class="source-card-page" style="color: #a855f7;">{page_str} (Click to view)</span>
-</div>
-</div>"""
-                    else:
-                        sources_html += f"""<div class="source-card" style="display: flex; align-items: center; gap: 8px;">
-<span class="source-card-icon">📄</span>
-<div class="source-card-details">
-<span class="source-card-name" title="{name}">{name}</span>
 <span class="source-card-page">{page_str}</span>
 </div>
 </div>"""
@@ -1565,40 +1478,7 @@ if "conversationsal_chain" not in st.session_state:
         st.session_state.vectorstore
     )
 
-# Hidden widgets for JS communication (wrapped in display:none div to keep UI clean)
-st.markdown('<div style="display: none;">', unsafe_allow_html=True)
-citation_helper = st.text_input("Active Citation Helper", placeholder="Active Citation Helper", key="active_citation_helper", value="")
-trigger_btn = st.button("Trigger Citation Rerun", key="active_citation_trigger")
-st.markdown('</div>', unsafe_allow_html=True)
-
-if "last_processed_citation_rand" not in st.session_state:
-    st.session_state.last_processed_citation_rand = None
-
-if citation_helper:
-    try:
-        import json
-        data = json.loads(citation_helper)
-        rand_id = data.get("rand")
-        if rand_id != st.session_state.last_processed_citation_rand:
-            st.session_state.last_processed_citation_rand = rand_id
-            doc_name = data.get("doc")
-            page_num = data.get("page")
-            m_idx = data.get("msgIdx")
-            s_idx = data.get("srcIdx")
-            
-            if doc_name:
-                st.session_state.selected_document = doc_name
-                st.session_state.active_page = int(page_num)
-                st.session_state.expand_insights = True
-                
-                # Fetch text chunk from message sources
-                if 0 <= m_idx < len(st.session_state.chat_history):
-                    msg = st.session_state.chat_history[m_idx]
-                    if 0 <= s_idx < len(msg.get("sources", [])):
-                        src = msg["sources"][s_idx]
-                        st.session_state.active_text = src.get("text", "")
-    except Exception as e:
-        logger.error(f"Error parsing citation helper JSON: {str(e)}")
+# Hidden widgets and last processed helper deleted to clean up UI
 
 # Inject CSS and JavaScript assets
 inject_custom_assets()
