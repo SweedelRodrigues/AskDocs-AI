@@ -1039,6 +1039,20 @@ def inject_custom_assets():
                 console.error("Active Citation Helper input element not found!");
             }
         }
+
+        // Global Event Delegation for RAG Citation click triggers
+        document.addEventListener('click', function(event) {
+            const trigger = event.target.closest('.citation-trigger');
+            if (trigger) {
+                const doc = trigger.getAttribute('data-doc');
+                const page = parseInt(trigger.getAttribute('data-page'));
+                const msgIdx = parseInt(trigger.getAttribute('data-msg-idx'));
+                const srcIdx = parseInt(trigger.getAttribute('data-src-idx'));
+                if (doc && !isNaN(page)) {
+                    setCitation(doc, page, msgIdx, srcIdx);
+                }
+            }
+        });
         </script>
         """,
         unsafe_allow_html=True
@@ -1304,11 +1318,11 @@ def render_chat_messages():
                     safe_name = urllib.parse.quote(name)
                     
                     if page is not None:
-                        js_name = name.replace("'", "\\'")
-                        sources_html += f"""<div onclick="setCitation('{js_name}', {page}, {idx}, {s_idx})" class="source-card" style="cursor: pointer; text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+                        escaped_name = html.escape(name)
+                        sources_html += f"""<div class="source-card citation-trigger" data-doc="{escaped_name}" data-page="{page}" data-msg-idx="{idx}" data-src-idx="{s_idx}" style="cursor: pointer; text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
 <span class="source-card-icon">📄</span>
 <div class="source-card-details">
-<span class="source-card-name" title="{name}">{name}</span>
+<span class="source-card-name" title="{escaped_name}">{escaped_name}</span>
 <span class="source-card-page" style="color: #a855f7;">{page_str} (Click to view)</span>
 </div>
 </div>"""
