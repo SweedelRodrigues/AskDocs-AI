@@ -1289,13 +1289,13 @@ def render_chat_messages():
                     
                     if page is not None:
                         js_name = name.replace("'", "\\'")
-                        sources_html += f"""<a href="javascript:void(0)" onclick="setCitation('{js_name}', {page}, {idx}, {s_idx})" class="source-card" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
+                        sources_html += f"""<div onclick="setCitation('{js_name}', {page}, {idx}, {s_idx})" class="source-card" style="cursor: pointer; text-decoration: none; color: inherit; display: flex; align-items: center; gap: 8px;">
 <span class="source-card-icon">📄</span>
 <div class="source-card-details">
 <span class="source-card-name" title="{name}">{name}</span>
 <span class="source-card-page" style="color: #a855f7;">{page_str} (Click to view)</span>
 </div>
-</a>"""
+</div>"""
                     else:
                         sources_html += f"""<div class="source-card" style="display: flex; align-items: center; gap: 8px;">
 <span class="source-card-icon">📄</span>
