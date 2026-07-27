@@ -985,96 +985,121 @@ def inject_custom_assets():
         }
 
         function setCitation(doc, page, msgIdx, srcIdx) {
+            console.log("setCitation called with:", doc, page, msgIdx, srcIdx);
             let targetInput = null;
             
-            // 1. Try local document wrappers search first (Safe and direct inside the Streamlit iframe)
+            // 1. Try local document query first
             try {
-                const localWrappers = document.querySelectorAll('[data-testid="stTextInput"]');
-                for (const wrapper of localWrappers) {
-                    const label = wrapper.querySelector('label');
-                    if (label && label.innerText.trim() === "Active Citation Helper") {
-                        targetInput = wrapper.querySelector('input');
-                        break;
-                    }
-                }
+                targetInput = document.querySelector('input[aria-label="Active Citation Helper"]') ||
+                              document.querySelector('input[placeholder="Active Citation Helper"]');
+                if (targetInput) console.log("Found targetInput locally via querySelector");
             } catch (e) {
-                console.error("Local wrapper search error:", e);
+                console.error("Local querySelector error:", e);
             }
             
-            // 2. Try local inputs fallback (Search by placeholder/aria-label)
+            // 2. Try local wrappers loop fallback
             if (!targetInput) {
                 try {
-                    const localInputs = document.querySelectorAll('input');
-                    for (const input of localInputs) {
-                        if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
-                            targetInput = input;
-                            break;
+                    const localWrappers = document.querySelectorAll('[data-testid="stTextInput"]');
+                    for (const wrapper of localWrappers) {
+                        const label = wrapper.querySelector('label');
+                        if (label && (label.textContent || label.innerText || "").trim() === "Active Citation Helper") {
+                            targetInput = wrapper.querySelector('input');
+                            if (targetInput) {
+                                console.log("Found targetInput locally via wrappers loop");
+                                break;
+                            }
                         }
                     }
                 } catch (e) {
-                    console.error("Local input search error:", e);
+                    console.error("Local wrapper loop error:", e);
                 }
             }
             
             // 3. Fallback to window.parent context (wrapped in try-catch for cross-origin compliance on Streamlit Cloud)
             if (!targetInput) {
                 try {
-                    const wrappers = window.parent.document.querySelectorAll('[data-testid="stTextInput"]');
-                    for (const wrapper of wrappers) {
-                        const label = wrapper.querySelector('label');
-                        if (label && label.innerText.trim() === "Active Citation Helper") {
-                            targetInput = wrapper.querySelector('input');
-                            break;
-                        }
-                    }
+                    targetInput = window.parent.document.querySelector('input[aria-label="Active Citation Helper"]') ||
+                                  window.parent.document.querySelector('input[placeholder="Active Citation Helper"]');
+                    if (targetInput) console.log("Found targetInput in parent via querySelector");
                 } catch (e) {
-                    console.warn("Parent document access blocked by cross-origin policy:", e);
+                    console.warn("Parent querySelector access blocked by cross-origin policy:", e);
                 }
             }
             
-            // 4. Fallback to parent inputs
+            // 4. Try parent wrappers loop fallback
             if (!targetInput) {
                 try {
-                    const inputs = window.parent.document.querySelectorAll('input');
-                    for (const input of inputs) {
-                        if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
-                            targetInput = input;
-                            break;
+                    const wrappers = window.parent.document.querySelectorAll('[data-testid="stTextInput"]');
+                    for (const wrapper of wrappers) {
+                        const label = wrapper.querySelector('label');
+                        if (label && (label.textContent || label.innerText || "").trim() === "Active Citation Helper") {
+                            targetInput = wrapper.querySelector('input');
+                            if (targetInput) {
+                                console.log("Found targetInput in parent via wrappers loop");
+                                break;
+                            }
                         }
                     }
                 } catch (e) {
-                    console.warn("Parent input access blocked by cross-origin policy:", e);
+                    console.warn("Parent wrapper loop access blocked by cross-origin policy:", e);
                 }
             }
             
             if (targetInput) {
                 const value = JSON.stringify({doc: doc, page: page, msgIdx: msgIdx, srcIdx: srcIdx, rand: Math.random()});
-                const lastValue = targetInput.value;
-                targetInput.value = value;
+                console.log("Setting input value to:", value);
+                
+                try {
+                    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                    nativeValueSetter.call(targetInput, value);
+                } catch (e) {
+                    console.warn("Native value setter failed, falling back to direct assignment", e);
+                    targetInput.value = value;
+                }
+                
                 const tracker = targetInput._valueTracker;
                 if (tracker) {
-                    tracker.setValue(lastValue);
+                    try {
+                        tracker.setValue("");
+                    } catch (e) {}
                 }
+                
                 targetInput.dispatchEvent(new Event('input', { bubbles: true }));
                 targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log("Events dispatched successfully");
             } else {
-                console.error("Active Citation Helper input element not found!");
+                console.error("Active Citation Helper input element not found in any scope!");
             }
         }
 
-        // Global Event Delegation for RAG Citation click triggers
+        // Global Event Delegation for custom click triggers (using Capture phase)
         document.addEventListener('click', function(event) {
+            // Handle Copy button trigger
+            const copyTrigger = event.target.closest('.copy-trigger');
+            if (copyTrigger) {
+                console.log("Copy clicked! Element:", copyTrigger);
+                const targetId = copyTrigger.getAttribute('data-target');
+                if (targetId) {
+                    copyToClipboard(targetId);
+                }
+                return;
+            }
+
+            // Handle RAG Citation trigger
             const trigger = event.target.closest('.citation-trigger');
             if (trigger) {
+                console.log("Citation clicked! Element:", trigger);
                 const doc = trigger.getAttribute('data-doc');
                 const page = parseInt(trigger.getAttribute('data-page'));
                 const msgIdx = parseInt(trigger.getAttribute('data-msg-idx'));
                 const srcIdx = parseInt(trigger.getAttribute('data-src-idx'));
+                console.log("Extracted attributes:", doc, page, msgIdx, srcIdx);
                 if (doc && !isNaN(page)) {
                     setCitation(doc, page, msgIdx, srcIdx);
                 }
             }
-        });
+        }, true);
         </script>
         """,
         unsafe_allow_html=True
@@ -1378,17 +1403,11 @@ def render_chat_messages():
 {badge_html}
 <div class="message-text" id="msg-{idx}" data-raw-text="{escaped_raw}">{html_content}</div>
 {sources_html}
-<div class="feedback-actions">
-<button onclick="copyToClipboard('msg-{idx}')" class="action-btn" title="Copy response">
-<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy
-</button>
-<button onclick="handleFeedback(this, 'up')" class="action-btn" title="Thumbs up">
-<svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg> Helpful
-</button>
-<button onclick="handleFeedback(this, 'down')" class="action-btn" title="Thumbs down">
-<svg viewBox="0 0 24 24"><path d="M19 15h4V3h-4v12zm-4 0c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73V4c0-1.1-.9-2-2-2H9c-.83 0-1.54.5-1.84 1.22L4.14 10.27c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L12.83 23l6.59-6.59c.37-.36.58-.86.58-1.41z"/></svg> Unhelpful
-</button>
-</div>
+                <div class="feedback-actions">
+                    <button class="action-btn copy-trigger" data-target="msg-{idx}" title="Copy response">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy
+                    </button>
+                </div>
 </div>
 <div class="message-timestamp assistant-timestamp">{timestamp}</div>
 </div>"""
