@@ -988,7 +988,9 @@ def inject_custom_assets():
             parentWindow.setCitation = function(doc, page, msgIdx, srcIdx) {
                 console.log("setCitation called on parent with:", doc, page, msgIdx, srcIdx);
                 let targetInput = null;
+                let targetBtn = null;
                 
+                // 1. Find the input element
                 try {
                     targetInput = parentDoc.querySelector('input[aria-label="Active Citation Helper"]') ||
                                   parentDoc.querySelector('input[placeholder="Active Citation Helper"]');
@@ -1010,8 +1012,15 @@ def inject_custom_assets():
                         console.error("Parent wrapper search error:", e);
                     }
                 }
+
+                // 2. Find the trigger button
+                try {
+                    targetBtn = Array.from(parentDoc.querySelectorAll('button')).find(b => b.textContent.trim() === "Trigger Citation Rerun");
+                } catch (e) {
+                    console.error("Parent button search error:", e);
+                }
                 
-                if (targetInput) {
+                if (targetInput && targetBtn) {
                     const value = JSON.stringify({doc: doc, page: page, msgIdx: msgIdx, srcIdx: srcIdx, rand: Math.random()});
                     console.log("Setting input value to:", value);
                     
@@ -1032,32 +1041,11 @@ def inject_custom_assets():
                     targetInput.dispatchEvent(new parentWindow.Event('input', { bubbles: true }));
                     targetInput.dispatchEvent(new parentWindow.Event('change', { bubbles: true }));
                     
-                    // Dispatch keydown Enter and blur to force Streamlit rerun
-                    try {
-                        const enterEvent = new parentWindow.KeyboardEvent('keydown', {
-                            key: 'Enter',
-                            code: 'Enter',
-                            keyCode: 13,
-                            which: 13,
-                            bubbles: true,
-                            cancelable: true
-                        });
-                        targetInput.dispatchEvent(enterEvent);
-                        console.log("Enter keydown event dispatched");
-                    } catch (ke) {
-                        console.warn("Failed to dispatch KeyboardEvent:", ke);
-                    }
-                    
-                    try {
-                        targetInput.dispatchEvent(new parentWindow.Event('blur', { bubbles: true }));
-                        console.log("Blur event dispatched");
-                    } catch (be) {
-                        console.warn("Failed to dispatch blur event:", be);
-                    }
-                    
-                    console.log("Events dispatched successfully");
+                    console.log("Clicking trigger button to force rerun");
+                    targetBtn.click();
+                    console.log("Trigger button clicked successfully");
                 } else {
-                    console.error("Active Citation Helper input element not found in parent document!");
+                    console.error("Required elements (input or trigger button) not found in parent document!", targetInput, targetBtn);
                 }
             };
 
@@ -1577,18 +1565,11 @@ if "conversationsal_chain" not in st.session_state:
         st.session_state.vectorstore
     )
 
-# Hidden text input citation helper
-st.markdown(
-    """
-    <style>
-    div[data-testid="stTextInput"] {
-        display: none !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# Hidden widgets for JS communication (wrapped in display:none div to keep UI clean)
+st.markdown('<div style="display: none;">', unsafe_allow_html=True)
 citation_helper = st.text_input("Active Citation Helper", placeholder="Active Citation Helper", key="active_citation_helper", value="")
+trigger_btn = st.button("Trigger Citation Rerun", key="active_citation_trigger")
+st.markdown('</div>', unsafe_allow_html=True)
 
 if "last_processed_citation_rand" not in st.session_state:
     st.session_state.last_processed_citation_rand = None
