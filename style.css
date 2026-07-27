@@ -209,11 +209,10 @@ section[data-testid="stSidebar"] div[data-testid="column"] button:hover {
         display: none !important;
     }
     
-    /* Shift main container right by sidebar width */
-    div[data-testid="stAppViewContainer"] {
+    /* Shift main view container right by sidebar width */
+    div[data-testid="stMainView"] {
         margin-left: 320px !important;
         width: calc(100vw - 320px) !important;
-        display: block !important;
     }
     
     [data-testid="block-container"] {
