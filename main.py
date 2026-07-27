@@ -938,7 +938,6 @@ def inject_custom_assets():
             css = f.read()
         st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
     
-    # Inject background orbs and JS toast + interactions
     st.markdown(
         """
         <div class="orb-container">
@@ -947,162 +946,132 @@ def inject_custom_assets():
             <div class="orb orb-pink"></div>
         </div>
         <div id="custom-toast" class="custom-toast"></div>
-        
-        <script>
-        function showToast(message) {
-            const toast = document.getElementById('custom-toast');
-            if (toast) {
-                toast.textContent = message;
-                toast.className = 'custom-toast show';
-                setTimeout(function() {
-                    toast.className = 'custom-toast';
-                }, 3000);
-            }
-        }
-        
-        function copyToClipboard(textId) {
-            const textElement = document.getElementById(textId);
-            if (textElement) {
-                const text = textElement.getAttribute('data-raw-text') || textElement.innerText;
-                navigator.clipboard.writeText(text).then(function() {
-                    showToast('Copied response to clipboard!');
-                }).catch(function() {
-                    showToast('Failed to copy text.');
-                });
-            }
-        }
-        
-        function handleFeedback(btn, type) {
-            btn.classList.toggle('active');
-            const row = btn.closest('.feedback-actions');
-            if (row) {
-                const buttons = row.querySelectorAll('.action-btn');
-                buttons.forEach(b => {
-                    if (b !== btn) b.classList.remove('active');
-                });
-            }
-            showToast('Feedback recorded! Thank you.');
-        }
-
-        function setCitation(doc, page, msgIdx, srcIdx) {
-            console.log("setCitation called with:", doc, page, msgIdx, srcIdx);
-            let targetInput = null;
-            
-            // 1. Try local document query first
-            try {
-                targetInput = document.querySelector('input[aria-label="Active Citation Helper"]') ||
-                              document.querySelector('input[placeholder="Active Citation Helper"]');
-                if (targetInput) console.log("Found targetInput locally via querySelector");
-            } catch (e) {
-                console.error("Local querySelector error:", e);
-            }
-            
-            // 2. Try local wrappers loop fallback
-            if (!targetInput) {
-                try {
-                    const localWrappers = document.querySelectorAll('[data-testid="stTextInput"]');
-                    for (const wrapper of localWrappers) {
-                        const label = wrapper.querySelector('label');
-                        if (label && (label.textContent || label.innerText || "").trim() === "Active Citation Helper") {
-                            targetInput = wrapper.querySelector('input');
-                            if (targetInput) {
-                                console.log("Found targetInput locally via wrappers loop");
-                                break;
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error("Local wrapper loop error:", e);
-                }
-            }
-            
-            // 3. Fallback to window.parent context (wrapped in try-catch for cross-origin compliance on Streamlit Cloud)
-            if (!targetInput) {
-                try {
-                    targetInput = window.parent.document.querySelector('input[aria-label="Active Citation Helper"]') ||
-                                  window.parent.document.querySelector('input[placeholder="Active Citation Helper"]');
-                    if (targetInput) console.log("Found targetInput in parent via querySelector");
-                } catch (e) {
-                    console.warn("Parent querySelector access blocked by cross-origin policy:", e);
-                }
-            }
-            
-            // 4. Try parent wrappers loop fallback
-            if (!targetInput) {
-                try {
-                    const wrappers = window.parent.document.querySelectorAll('[data-testid="stTextInput"]');
-                    for (const wrapper of wrappers) {
-                        const label = wrapper.querySelector('label');
-                        if (label && (label.textContent || label.innerText || "").trim() === "Active Citation Helper") {
-                            targetInput = wrapper.querySelector('input');
-                            if (targetInput) {
-                                console.log("Found targetInput in parent via wrappers loop");
-                                break;
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Parent wrapper loop access blocked by cross-origin policy:", e);
-                }
-            }
-            
-            if (targetInput) {
-                const value = JSON.stringify({doc: doc, page: page, msgIdx: msgIdx, srcIdx: srcIdx, rand: Math.random()});
-                console.log("Setting input value to:", value);
-                
-                try {
-                    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                    nativeValueSetter.call(targetInput, value);
-                } catch (e) {
-                    console.warn("Native value setter failed, falling back to direct assignment", e);
-                    targetInput.value = value;
-                }
-                
-                const tracker = targetInput._valueTracker;
-                if (tracker) {
-                    try {
-                        tracker.setValue("");
-                    } catch (e) {}
-                }
-                
-                targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log("Events dispatched successfully");
-            } else {
-                console.error("Active Citation Helper input element not found in any scope!");
-            }
-        }
-
-        // Global Event Delegation for custom click triggers (using Capture phase)
-        document.addEventListener('click', function(event) {
-            // Handle Copy button trigger
-            const copyTrigger = event.target.closest('.copy-trigger');
-            if (copyTrigger) {
-                console.log("Copy clicked! Element:", copyTrigger);
-                const targetId = copyTrigger.getAttribute('data-target');
-                if (targetId) {
-                    copyToClipboard(targetId);
-                }
-                return;
-            }
-
-            // Handle RAG Citation trigger
-            const trigger = event.target.closest('.citation-trigger');
-            if (trigger) {
-                console.log("Citation clicked! Element:", trigger);
-                const doc = trigger.getAttribute('data-doc');
-                const page = parseInt(trigger.getAttribute('data-page'));
-                const msgIdx = parseInt(trigger.getAttribute('data-msg-idx'));
-                const srcIdx = parseInt(trigger.getAttribute('data-src-idx'));
-                console.log("Extracted attributes:", doc, page, msgIdx, srcIdx);
-                if (doc && !isNaN(page)) {
-                    setCitation(doc, page, msgIdx, srcIdx);
-                }
-            }
-        }, true);
-        </script>
         """,
         unsafe_allow_html=True
+    )
+    
+    # Inject JavaScript using Streamlit HTML component to bypass innerHTML execution restrictions
+    import streamlit.components.v1 as components
+    components.html(
+        """
+        <script>
+        try {
+            const parentWindow = window.parent;
+            const parentDoc = parentWindow.document;
+
+            // Define showToast on parent window
+            parentWindow.showToast = function(message) {
+                const toast = parentDoc.getElementById('custom-toast');
+                if (toast) {
+                    toast.textContent = message;
+                    toast.className = 'custom-toast show';
+                    setTimeout(function() {
+                        toast.className = 'custom-toast';
+                    }, 3000);
+                }
+            };
+
+            // Define copyToClipboard on parent window
+            parentWindow.copyToClipboard = function(textId) {
+                const textElement = parentDoc.getElementById(textId);
+                if (textElement) {
+                    const text = textElement.getAttribute('data-raw-text') || textElement.innerText;
+                    parentWindow.navigator.clipboard.writeText(text).then(function() {
+                        parentWindow.showToast('Copied response to clipboard!');
+                    }).catch(function() {
+                        parentWindow.showToast('Failed to copy text.');
+                    });
+                }
+            };
+
+            // Define setCitation on parent window
+            parentWindow.setCitation = function(doc, page, msgIdx, srcIdx) {
+                console.log("setCitation called on parent with:", doc, page, msgIdx, srcIdx);
+                let targetInput = null;
+                
+                try {
+                    targetInput = parentDoc.querySelector('input[aria-label="Active Citation Helper"]') ||
+                                  parentDoc.querySelector('input[placeholder="Active Citation Helper"]');
+                } catch (e) {
+                    console.error("Parent querySelector error:", e);
+                }
+                
+                if (!targetInput) {
+                    try {
+                        const wrappers = parentDoc.querySelectorAll('[data-testid="stTextInput"]');
+                        for (const wrapper of wrappers) {
+                            const label = wrapper.querySelector('label');
+                            if (label && (label.textContent || label.innerText || "").trim() === "Active Citation Helper") {
+                                targetInput = wrapper.querySelector('input');
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Parent wrapper search error:", e);
+                    }
+                }
+                
+                if (targetInput) {
+                    const value = JSON.stringify({doc: doc, page: page, msgIdx: msgIdx, srcIdx: srcIdx, rand: Math.random()});
+                    console.log("Setting input value to:", value);
+                    
+                    try {
+                        const nativeValueSetter = Object.getOwnPropertyDescriptor(parentWindow.HTMLInputElement.prototype, "value").set;
+                        nativeValueSetter.call(targetInput, value);
+                    } catch (e) {
+                        targetInput.value = value;
+                    }
+                    
+                    const tracker = targetInput._valueTracker;
+                    if (tracker) {
+                        try {
+                            tracker.setValue("");
+                        } catch (e) {}
+                    }
+                    
+                    targetInput.dispatchEvent(new parentWindow.Event('input', { bubbles: true }));
+                    targetInput.dispatchEvent(new parentWindow.Event('change', { bubbles: true }));
+                    console.log("Events dispatched successfully");
+                } else {
+                    console.error("Active Citation Helper input element not found in parent document!");
+                }
+            };
+
+            // Attach click listener to parent document (capture phase)
+            parentDoc.addEventListener('click', function(event) {
+                // Handle Copy trigger
+                const copyTrigger = event.target.closest('.copy-trigger');
+                if (copyTrigger) {
+                    console.log("Copy clicked! Element:", copyTrigger);
+                    const targetId = copyTrigger.getAttribute('data-target');
+                    if (targetId) {
+                        parentWindow.copyToClipboard(targetId);
+                    }
+                    return;
+                }
+
+                // Handle Citation trigger
+                const trigger = event.target.closest('.citation-trigger');
+                if (trigger) {
+                    console.log("Citation clicked! Element:", trigger);
+                    const doc = trigger.getAttribute('data-doc');
+                    const page = parseInt(trigger.getAttribute('data-page'));
+                    const msgIdx = parseInt(trigger.getAttribute('data-msg-idx'));
+                    const srcIdx = parseInt(trigger.getAttribute('data-src-idx'));
+                    if (doc && !isNaN(page)) {
+                        parentWindow.setCitation(doc, page, msgIdx, srcIdx);
+                    }
+                }
+            }, true);
+
+            console.log("Successfully initialized AskDocs helper scripts on parent document.");
+        } catch (e) {
+            console.error("AskDocs scripts failed to initialize on parent document:", e);
+        }
+        </script>
+        """,
+        height=0,
+        width=0
     )
 
 def get_pdf_files():
