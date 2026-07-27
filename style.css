@@ -151,7 +151,7 @@ section[data-testid="stSidebar"] .stButton>button:hover {
 }
 
 /* Custom styling for document deletion trash button in list */
-section[data-testid="stSidebar"] div[data-testid="column"] button {
+section[data-testid="stSidebar"] div[data-testid="column"]:nth-child(2) button {
     background: transparent !important;
     border: none !important;
     color: #64748b !important;
