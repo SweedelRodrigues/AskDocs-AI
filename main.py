@@ -446,12 +446,14 @@ def render_document_metadata(metadata):
 
 def render_summary(quick_summary, detailed_summary):
     """
-    Renders the quick summary text and detailed summary using a toggle.
+    Renders the quick summary text and detailed summary inside a beautiful border card.
     """
-    st.markdown(f"**Quick Summary:**  \n{quick_summary}")
-    show_details = st.toggle("🔍 Show Detailed AI Summary", value=False)
-    if show_details:
-        st.markdown(detailed_summary)
+    with st.container(border=True):
+        st.markdown(f"**Quick Summary:**  \n{quick_summary}")
+        show_details = st.toggle("🔍 Show Detailed AI Summary", value=False)
+        if show_details:
+            st.divider()
+            st.markdown(detailed_summary)
 
 def render_key_topics(topics):
     """
@@ -532,7 +534,8 @@ def render_document_dashboard(filename):
         
         # 1. Metadata
         st.markdown("##### Metadata")
-        render_document_metadata(summary_data.get("metadata", {}))
+        with st.container(border=True):
+            render_document_metadata(summary_data.get("metadata", {}))
         
         # 2. PDF Preview Card
         # Expand preview if we have an active citation highlighted
@@ -542,7 +545,8 @@ def render_document_dashboard(filename):
             
         show_preview = st.toggle("👁️ Show PDF Document Preview", value=preview_expanded)
         if show_preview:
-            render_pdf_preview(filename)
+            with st.container(border=True):
+                render_pdf_preview(filename)
             
         st.divider()
         
@@ -556,23 +560,26 @@ def render_document_dashboard(filename):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("##### 🎯 Document Context")
-            st.markdown(f"**Purpose:** {summary_data.get('purpose', 'N/A')}")
-            st.markdown(f"**Intended Audience:** {summary_data.get('intended_audience', 'N/A')}")
-            st.markdown(f"**Difficulty Level:** {summary_data.get('difficulty_level', 'N/A')}")
-            
-            st.markdown("##### 🏷️ Key Topics")
-            render_key_topics(summary_data.get("topics", []))
+            with st.container(border=True):
+                st.markdown("##### 🎯 Document Context")
+                st.markdown(f"**Purpose:** {summary_data.get('purpose', 'N/A')}")
+                st.markdown(f"**Intended Audience:** {summary_data.get('intended_audience', 'N/A')}")
+                st.markdown(f"**Difficulty Level:** {summary_data.get('difficulty_level', 'N/A')}")
+                
+                st.markdown("##### 🏷️ Key Topics")
+                render_key_topics(summary_data.get("topics", []))
             
         with col2:
-            st.markdown("##### 📝 Key Takeaways")
-            render_takeaways(summary_data.get("takeaways", []), summary_data.get("conclusion", ""))
+            with st.container(border=True):
+                st.markdown("##### 📝 Key Takeaways")
+                render_takeaways(summary_data.get("takeaways", []), summary_data.get("conclusion", ""))
             
         st.divider()
         
         # 5. Suggested Questions
         st.markdown("##### 💡 Suggested Questions")
-        render_suggested_questions(summary_data.get("suggested_questions", []))
+        with st.container(border=True):
+            render_suggested_questions(summary_data.get("suggested_questions", []))
         
         st.write("") # Add spacing
         
