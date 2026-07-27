@@ -986,17 +986,9 @@ def inject_custom_assets():
 
         function setCitation(doc, page, msgIdx, srcIdx) {
             let targetInput = null;
-            // 1. Find all stTextInput containers in parent context
-            const wrappers = window.parent.document.querySelectorAll('[data-testid="stTextInput"]');
-            for (const wrapper of wrappers) {
-                const label = wrapper.querySelector('label');
-                if (label && label.innerText.trim() === "Active Citation Helper") {
-                    targetInput = wrapper.querySelector('input');
-                    break;
-                }
-            }
-            // 2. Fallback to local document wrappers search
-            if (!targetInput) {
+            
+            // 1. Try local document wrappers search first (Safe and direct inside the Streamlit iframe)
+            try {
                 const localWrappers = document.querySelectorAll('[data-testid="stTextInput"]');
                 for (const wrapper of localWrappers) {
                     const label = wrapper.querySelector('label');
@@ -1005,26 +997,56 @@ def inject_custom_assets():
                         break;
                     }
                 }
+            } catch (e) {
+                console.error("Local wrapper search error:", e);
             }
-            // 3. Fallback: Search all inputs for aria-label or placeholder as backup
+            
+            // 2. Try local inputs fallback (Search by placeholder/aria-label)
             if (!targetInput) {
-                const inputs = window.parent.document.querySelectorAll('input');
-                for (const input of inputs) {
-                    if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
-                        targetInput = input;
-                        break;
+                try {
+                    const localInputs = document.querySelectorAll('input');
+                    for (const input of localInputs) {
+                        if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
+                            targetInput = input;
+                            break;
+                        }
                     }
+                } catch (e) {
+                    console.error("Local input search error:", e);
                 }
             }
+            
+            // 3. Fallback to window.parent context (wrapped in try-catch for cross-origin compliance on Streamlit Cloud)
             if (!targetInput) {
-                const localInputs = document.querySelectorAll('input');
-                for (const input of localInputs) {
-                    if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
-                        targetInput = input;
-                        break;
+                try {
+                    const wrappers = window.parent.document.querySelectorAll('[data-testid="stTextInput"]');
+                    for (const wrapper of wrappers) {
+                        const label = wrapper.querySelector('label');
+                        if (label && label.innerText.trim() === "Active Citation Helper") {
+                            targetInput = wrapper.querySelector('input');
+                            break;
+                        }
                     }
+                } catch (e) {
+                    console.warn("Parent document access blocked by cross-origin policy:", e);
                 }
             }
+            
+            // 4. Fallback to parent inputs
+            if (!targetInput) {
+                try {
+                    const inputs = window.parent.document.querySelectorAll('input');
+                    for (const input of inputs) {
+                        if (input.placeholder === "Active Citation Helper" || input.getAttribute('aria-label') === "Active Citation Helper") {
+                            targetInput = input;
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Parent input access blocked by cross-origin policy:", e);
+                }
+            }
+            
             if (targetInput) {
                 const value = JSON.stringify({doc: doc, page: page, msgIdx: msgIdx, srcIdx: srcIdx, rand: Math.random()});
                 const lastValue = targetInput.value;
