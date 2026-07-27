@@ -12,13 +12,21 @@ When answers are partially or fully unavailable in your uploaded documents, AskD
 *Landing page showing features and upload options before documents are selected.*
 ![Welcome Screen](screenshots/welcome_page.png)
 
-### 2. Document Insights Dashboard
-*Detailed metadata metrics, executive summary, key takeaways, topics, and interactive PDF page previews with custom highlights.*
-![Document Insights Dashboard](screenshots/document_insights.png)
+### 2. Document Insights (Overview)
+*Detailed metadata metrics, executive summary, key takeaways, and document context.*
+![Document Insights Overview](screenshots/document_insights_1.png)
 
-### 3. Interactive RAG Chat & Hybrid Web Search
-*Conversational interface displaying answers backed by document citations (click to jump to page) and web sources.*
+### 3. Document Insights (Key Topics & Questions)
+*Key topics keyword tags, suggested questions, and general chat controls.*
+![Document Insights Topics and Questions](screenshots/document_insights_2.png)
+
+### 4. Interactive RAG Chat & Citations
+*Conversational interface displaying answers backed by document citations with copy and feedback buttons.*
 ![Interactive RAG Chat](screenshots/chat_interface.png)
+
+### 5. Dynamic PDF Viewer & Highlights
+*Page-by-page rendering of PDFs as PNGs with custom yellow highlights drawn over matching chunks retrieved by RAG.*
+![Dynamic PDF Viewer and Highlights](screenshots/pdf_preview_highlights.png)
 
 ---
 

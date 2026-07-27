@@ -342,5 +342,42 @@
             "reading_time": 31,
             "upload_time": "July 13, 2026, 11:48 AM"
         }
+    },
+    "d8a6b7e993691bf415ac963be4067a8cc44f62e4f39c87d2bafc398443a64a13": {
+        "filename": "DSA REVISION CHEAT SHEET.pdf",
+        "quick_summary": "The document provides solutions to various LeetCode problems, including Two Sum, Remove Duplicates from Sorted Array, and Best Time to Buy and Sell Stock, using patterns such as Hash Map, Two Pointers, and Greedy algorithms. The solutions are implemented in C++ and have a time complexity of O(n) and space complexity of O(1) or O(n). The document aims to help readers understand and implement efficient solutions to common algorithmic problems.",
+        "detailed_summary": "The document presents a collection of solutions to popular LeetCode problems, each with a specific pattern or approach. The problems range from basic array operations like removing duplicates to more complex tasks like finding the best time to buy and sell stock. The solutions are written in C++ and utilize various data structures and algorithms, including Hash Maps, Two Pointers, and Greedy algorithms. The time and space complexities of each solution are provided, allowing readers to understand the efficiency of each approach. The document is designed to help readers develop their problem-solving skills and learn how to implement efficient solutions to common algorithmic problems.",
+        "purpose": "The main purpose of the document is to provide solutions to common LeetCode problems and help readers understand and implement efficient algorithms.",
+        "topics": [
+            "LeetCode",
+            "Algorithms",
+            "Data Structures",
+            "Hash Map",
+            "Two Pointers",
+            "Greedy",
+            "C++"
+        ],
+        "takeaways": [
+            "Use Hash Maps to solve problems with frequent lookups",
+            "Two Pointers can be used to solve problems with sorted arrays",
+            "Greedy algorithms can be used to solve problems with optimal substructure"
+        ],
+        "intended_audience": "The intended audience is likely programmers and software developers who are looking to improve their problem-solving skills and learn how to implement efficient algorithms.",
+        "difficulty_level": "Intermediate",
+        "suggested_questions": [
+            "What is the time complexity of the Two Sum solution?",
+            "How does the Two Pointers approach work in the Remove Duplicates from Sorted Array problem?",
+            "What is the space complexity of the Best Time to Buy and Sell Stock solution?",
+            "How does the Greedy algorithm work in the Best Time to Buy and Sell Stock problem?",
+            "What is the purpose of using a Hash Map in the Two Sum solution?"
+        ],
+        "conclusion": "The document provides a comprehensive collection of solutions to common LeetCode problems, using a variety of patterns and approaches, and is a valuable resource for programmers and software developers looking to improve their problem-solving skills.",
+        "metadata": {
+            "filename": "DSA REVISION CHEAT SHEET.pdf",
+            "total_pages": 11,
+            "word_count": 536,
+            "reading_time": 3,
+            "upload_time": "July 27, 2026, 11:48 AM"
+        }
     }
 }
