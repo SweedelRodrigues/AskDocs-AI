@@ -446,10 +446,11 @@ def render_document_metadata(metadata):
 
 def render_summary(quick_summary, detailed_summary):
     """
-    Renders the quick summary text and detailed summary inside a Streamlit expander.
+    Renders the quick summary text and detailed summary using a toggle.
     """
     st.markdown(f"**Quick Summary:**  \n{quick_summary}")
-    with st.expander("🔍 View Detailed AI Summary", expanded=False):
+    show_details = st.toggle("🔍 Show Detailed AI Summary", value=False)
+    if show_details:
         st.markdown(detailed_summary)
 
 def render_key_topics(topics):
@@ -539,7 +540,8 @@ def render_document_dashboard(filename):
         if "active_text" in st.session_state and st.session_state.active_text:
             preview_expanded = True
             
-        with st.expander("👁️ Preview PDF Document", expanded=preview_expanded):
+        show_preview = st.toggle("👁️ Show PDF Document Preview", value=preview_expanded)
+        if show_preview:
             render_pdf_preview(filename)
             
         st.divider()
