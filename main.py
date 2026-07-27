@@ -1089,6 +1089,11 @@ def render_sidebar():
                         st.session_state.indexed_documents.append(f.name)
                     st.session_state.failed_uploads.discard(f.name)
                 
+                # Automatically select the newly uploaded document to open insights dashboard immediately (highly improves mobile UX)
+                if to_process:
+                    st.session_state.selected_document = to_process[-1].name
+                    st.session_state.expand_insights = True
+                
                 # Process automatic AI summary generation & caching for each uploaded file
                 for filename, saved_path in zip([f.name for f in to_process], saved_paths):
                     process_summary_for_file(filename, saved_path, status_placeholder)
