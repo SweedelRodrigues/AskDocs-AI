@@ -830,7 +830,8 @@ def save_uploaded_files(uploaded_files):
     saved_paths = []
     
     for uploaded_file in uploaded_files:
-        filename = uploaded_file.name
+        # Sanitize filename by removing full path sequences sent by some mobile browsers
+        filename = os.path.basename(uploaded_file.name)
         
         # Check if already indexed
         if filename in st.session_state.get("indexed_documents", []):
@@ -1063,8 +1064,7 @@ def render_sidebar():
     if uploaded_files:
         to_process = [
             f for f in uploaded_files 
-            if f.name not in st.session_state.get("indexed_documents", [])
-            and f.name not in st.session_state.get("failed_uploads", set())
+            if os.path.basename(f.name) not in st.session_state.get("indexed_documents", [])
         ]
         
         if to_process:
@@ -1085,17 +1085,18 @@ def render_sidebar():
                 
                 # Update states
                 for f in to_process:
-                    if f.name not in st.session_state.indexed_documents:
-                        st.session_state.indexed_documents.append(f.name)
-                    st.session_state.failed_uploads.discard(f.name)
+                    sanitized_name = os.path.basename(f.name)
+                    if sanitized_name not in st.session_state.indexed_documents:
+                        st.session_state.indexed_documents.append(sanitized_name)
+                    st.session_state.failed_uploads.discard(sanitized_name)
                 
                 # Automatically select the newly uploaded document to open insights dashboard immediately (highly improves mobile UX)
                 if to_process:
-                    st.session_state.selected_document = to_process[-1].name
+                    st.session_state.selected_document = os.path.basename(to_process[-1].name)
                     st.session_state.expand_insights = True
                 
                 # Process automatic AI summary generation & caching for each uploaded file
-                for filename, saved_path in zip([f.name for f in to_process], saved_paths):
+                for filename, saved_path in zip([os.path.basename(f.name) for f in to_process], saved_paths):
                     process_summary_for_file(filename, saved_path, status_placeholder)
 
                 # Step 3: Ready to chat.
@@ -1104,31 +1105,31 @@ def render_sidebar():
                 time.sleep(1.5)
                 status_placeholder.empty()
                 st.rerun()
-            except DuplicateUploadError:
+            except DuplicateUploadError as de:
                 status_placeholder.empty()
-                st.sidebar.error("This document is already indexed.")
+                st.error(f"Duplicate upload: {str(de)}")
                 for f in to_process:
-                    st.session_state.failed_uploads.add(f.name)
-            except EmptyPDFError:
+                    st.session_state.failed_uploads.add(os.path.basename(f.name))
+            except EmptyPDFError as ee:
                 status_placeholder.empty()
-                st.sidebar.error("The uploaded PDF is empty or has no readable text.")
+                st.error(f"Empty PDF upload error: {str(ee)}")
                 for f in to_process:
-                    st.session_state.failed_uploads.add(f.name)
-            except CorruptedPDFError:
+                    st.session_state.failed_uploads.add(os.path.basename(f.name))
+            except CorruptedPDFError as ce:
                 status_placeholder.empty()
-                st.sidebar.error("Failed to parse the PDF. It might be corrupted.")
+                st.error(f"Corrupted PDF upload error: {str(ce)}")
                 for f in to_process:
-                    st.session_state.failed_uploads.add(f.name)
-            except (EmbeddingFailureError, ChromaDBFailureError):
+                    st.session_state.failed_uploads.add(os.path.basename(f.name))
+            except (EmbeddingFailureError, ChromaDBFailureError) as dbe:
                 status_placeholder.empty()
-                st.sidebar.error("Database error occurred during vector generation.")
+                st.error(f"Database error: {str(dbe)}")
                 for f in to_process:
-                    st.session_state.failed_uploads.add(f.name)
-            except Exception:
+                    st.session_state.failed_uploads.add(os.path.basename(f.name))
+            except Exception as e:
                 status_placeholder.empty()
-                st.sidebar.error("Failed to process uploaded documents.")
+                st.error(f"Failed to process uploaded documents: {str(e)}")
                 for f in to_process:
-                    st.session_state.failed_uploads.add(f.name)
+                    st.session_state.failed_uploads.add(os.path.basename(f.name))
                 
     st.sidebar.markdown('<div class="sidebar-section-title">Uploaded Documents</div>', unsafe_allow_html=True)
     if "indexed_documents" in st.session_state and st.session_state.indexed_documents:
