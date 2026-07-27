@@ -545,8 +545,24 @@ def render_document_dashboard(filename):
             
         show_preview = st.toggle("👁️ Show PDF Document Preview", value=preview_expanded)
         if show_preview:
+            st.markdown('<div id="pdf-preview-anchor"></div>', unsafe_allow_html=True)
             with st.container(border=True):
                 render_pdf_preview(filename)
+            
+            if "active_text" in st.session_state and st.session_state.active_text:
+                st.markdown(
+                    """
+                    <script>
+                    setTimeout(function() {
+                        const anchor = document.getElementById("pdf-preview-anchor");
+                        if (anchor) {
+                            anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }
+                    }, 300);
+                    </script>
+                    """,
+                    unsafe_allow_html=True
+                )
             
         st.divider()
         
